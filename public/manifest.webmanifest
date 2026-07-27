@@ -1,0 +1,14 @@
+{
+  "name": "OpenStudio DAW",
+  "short_name": "OpenStudio",
+  "description": "Open, cross-platform synthesizer, sampler and DAW",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0e0f13",
+  "theme_color": "#0e0f13",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
