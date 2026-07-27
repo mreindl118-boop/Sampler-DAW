@@ -3,7 +3,7 @@ import { engine } from '../audio/engine'
 import { scalePitchSet } from '../music/theory'
 import { midiToName } from '../music/theory'
 import {
-  addNote, beginGesture, findClip, getState, removeNote, updateNote, useStore,
+  addNote, beginGesture, findClip, getState, quantizeClip, removeNote, updateNote, useStore,
 } from '../state/store'
 
 const LOW = 24 // C1
@@ -87,7 +87,14 @@ export function PianoRoll() {
   }
 
   return (
-    <div className="piano-roll">
+    <div className="piano-roll" style={{ flexDirection: 'column' }}>
+      <div style={{ display: 'flex', gap: 6, padding: '4px 8px', alignItems: 'center', background: 'var(--panel)', borderBottom: '1px solid var(--border)' }}>
+        <span className="section-title">{track.name} — {clip.name}</span>
+        <button className="small" onClick={() => quantizeClip(track.id, clip.id, snap)} title="Snap all note starts to the grid">
+          Quantize {snap === 1 ? '1 beat' : `1/${Math.round(4 / snap) * 4}`}
+        </button>
+        <span className="hint">Draw: click · Move/resize: drag · Velocity: Alt+drag ↕ · Delete: right-click</span>
+      </div>
       <div style={{ overflow: 'auto', display: 'flex', flex: 1 }} ref={scrollRef}>
         <div className="pr-keys">
           {Array.from({ length: rows }, (_, i) => {
@@ -150,6 +157,7 @@ function NoteView({
     e.stopPropagation()
     const target = e.target as HTMLElement
     const resizing = target.classList.contains('resize')
+    const velocityMode = e.altKey
     const startX = e.clientX
     const startY = e.clientY
     const orig = { ...note }
@@ -157,7 +165,10 @@ function NoteView({
     const move = (ev: PointerEvent) => {
       const dBeat = (ev.clientX - startX) / zoom
       const dPitch = Math.round((startY - ev.clientY) / ROW_H)
-      if (resizing) {
+      if (velocityMode) {
+        const vel = Math.min(1, Math.max(0.05, orig.vel + (startY - ev.clientY) / 150))
+        updateNote(trackId, clipId, note.id, { vel })
+      } else if (resizing) {
         const dur = Math.max(snap, Math.round((orig.dur + dBeat) / snap) * snap)
         updateNote(trackId, clipId, note.id, { dur })
       } else {

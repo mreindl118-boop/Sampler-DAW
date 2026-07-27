@@ -3,9 +3,13 @@ import { PolySynth } from './synth'
 import { SamplerInstrument, sampleStore } from './sampler'
 import { DrumKit } from './drums'
 import { buildFxChain } from './effects'
+import { scheduleLane } from './automation'
 import { audioBufferToWav, downloadBlob } from './wav'
 
-/** Render the whole project offline and download a 16-bit stereo WAV mixdown. */
+/**
+ * Render the whole project offline and download a 16-bit stereo WAV mixdown.
+ * Mirrors the live graph: fader/pan (with automation), clip gain + fades, FX, master limiter.
+ */
 export async function exportWav(project: Project): Promise<void> {
   const spb = 60 / project.tempo
   let endBeat = 4
@@ -29,17 +33,25 @@ export async function exportWav(project: Project): Promise<void> {
 
   const anySolo = project.tracks.some((t) => t.solo)
   const startPad = 0.05
+  const beatToTime = (b: number) => startPad + b * spb
 
   for (const track of project.tracks) {
     if (track.mute || (anySolo && !track.solo)) continue
     const fx = buildFxChain(ctx, track.fx)
-    const gain = ctx.createGain()
-    gain.gain.value = track.volume
+    const vol = ctx.createGain()
+    vol.gain.value = track.volume
     const pan = ctx.createStereoPanner()
     pan.pan.value = track.pan
-    fx.output.connect(gain)
-    gain.connect(pan)
+    fx.output.connect(vol)
+    vol.connect(pan)
     pan.connect(master)
+
+    // automation over the full render
+    for (const lane of track.automation) {
+      if (!lane.enabled || lane.points.length === 0) continue
+      if (lane.param === 'volume') scheduleLane(vol.gain, lane, 0, endBeat + 1, beatToTime, track.volume)
+      if (lane.param === 'pan') scheduleLane(pan.pan, lane, 0, endBeat + 1, beatToTime, track.pan)
+    }
 
     let instrument: PolySynth | SamplerInstrument | DrumKit | null = null
     if (track.kind === 'synth' && track.synth) instrument = new PolySynth(ctx, track.synth)
@@ -52,7 +64,7 @@ export async function exportWav(project: Project): Promise<void> {
         if (clip.kind !== 'midi') continue
         for (const note of clip.notes) {
           if (note.start >= clip.length) continue
-          const t = startPad + (clip.start + note.start) * spb
+          const t = beatToTime(clip.start + note.start)
           instrument.noteOn(note.pitch, note.vel, t)
           instrument.noteOff(note.pitch, t + Math.max(0.05, note.dur * spb))
         }
@@ -67,10 +79,23 @@ export async function exportWav(project: Project): Promise<void> {
         const src = ctx.createBufferSource()
         src.buffer = buffer
         const g = ctx.createGain()
-        g.gain.value = clip.gain
+        const when = beatToTime(clip.start)
+        const durSec = clip.length * spb
+        const fadeInSec = Math.min(clip.fadeIn * spb, durSec)
+        const fadeOutSec = Math.min(clip.fadeOut * spb, durSec)
+        if (fadeInSec > 0.001) {
+          g.gain.setValueAtTime(0.0001, when)
+          g.gain.linearRampToValueAtTime(clip.gain, when + fadeInSec)
+        } else {
+          g.gain.setValueAtTime(clip.gain, when)
+        }
+        if (fadeOutSec > 0.001) {
+          g.gain.setValueAtTime(clip.gain, when + durSec - fadeOutSec)
+          g.gain.linearRampToValueAtTime(0.0001, when + durSec)
+        }
         src.connect(g)
         g.connect(bus)
-        src.start(startPad + clip.start * spb, clip.offset, clip.length * spb)
+        src.start(when, clip.offset, durSec)
       }
     }
   }

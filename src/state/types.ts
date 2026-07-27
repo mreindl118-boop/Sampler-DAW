@@ -89,11 +89,26 @@ export interface AudioClip {
   sampleId: string
   offset: number // seconds into the sample
   gain: number
+  fadeIn: number // beats
+  fadeOut: number // beats
 }
 
 export type Clip = MidiClip | AudioClip
 
 export type TrackKind = 'synth' | 'sampler' | 'drums' | 'audio'
+
+export interface AutomationPoint {
+  id: string
+  beat: number
+  value: number // param units: volume 0..1.5, pan -1..1
+}
+
+export interface AutomationLane {
+  id: string
+  param: 'volume' | 'pan'
+  points: AutomationPoint[]
+  enabled: boolean
+}
 
 export interface Track {
   id: string
@@ -110,6 +125,27 @@ export interface Track {
   sampler?: SamplerParams
   drums?: DrumParams
   fx: FxUnit[]
+  /** Interface input channels feeding this track when recording: 1 (mono) or 2 (stereo pair) 0-based indices. */
+  inputChannels: number[]
+  /** Software input monitoring while armed. */
+  monitor: boolean
+  /** Hardware output pair index (0 = outs 1/2). -1 routes through the master bus. */
+  outputPair: number
+  /** External MIDI destination for MIDI tracks ('' = internal instrument only). */
+  midiOutId: string
+  midiOutChannel: number // 0-based
+  automation: AutomationLane[]
+  showAutomation: boolean
+}
+
+export interface Marker {
+  id: string
+  beat: number
+  name: string
+  /** MIDI Program Change (0-127) sent when playback passes the marker, or null. */
+  pc: number | null
+  /** MIDI CCs sent at the marker (e.g. Helix snapshot CC69). */
+  ccs: { num: number; val: number }[]
 }
 
 export interface SampleMeta {
@@ -128,7 +164,10 @@ export interface Project {
   tracks: Track[]
   samples: SampleMeta[]
   loop: { on: boolean; start: number; end: number } // beats
-  master: { volume: number; fx: FxUnit[] }
+  master: { volume: number; fx: FxUnit[]; outputPair: number }
+  markers: Marker[]
+  /** Device labels captured at save time so routing can be restored by name on another machine. */
+  io: { inputLabel: string; outputLabel: string }
 }
 
 // ---------- UI state ----------
@@ -140,6 +179,7 @@ export interface UIState {
   selectedClipId: string | null
   bottomTab: BottomTab
   snap: number // beats (0.25 = 1/16 in 4/4)
+  snapOn: boolean
   showSettings: boolean
   recording: boolean
   midiInputs: string[]

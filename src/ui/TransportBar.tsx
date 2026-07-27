@@ -4,6 +4,38 @@ import { exportWav } from '../audio/exporter'
 import { exportProjectFile, importProjectFile } from '../util/projectio'
 import { getState, newProject, redo, setProject, setUI, undo, useStore } from '../state/store'
 
+function MasterMeter() {
+  const [level, setLevel] = useState(0)
+  const peakRef = useRef(0)
+  const clipRef = useRef(0)
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      const p = engine.meterPeak(null)
+      peakRef.current = p > peakRef.current ? p : peakRef.current * 0.92
+      if (p >= 0.99) clipRef.current = performance.now()
+      setLevel(peakRef.current)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  const clip = performance.now() - clipRef.current < 1500
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Master peak meter">
+      <div style={{ width: 90, height: 10, background: '#0a0b0e', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+        <div
+          style={{
+            width: `${Math.min(1, level) * 100}%`, height: '100%',
+            background: 'linear-gradient(to right, #57d9a3 0%, #57d9a3 65%, #f7b32f 85%, #f75f5f 100%)',
+          }}
+        />
+      </div>
+      <span style={{ width: 10, height: 10, borderRadius: 2, background: clip ? 'var(--red)' : '#222630' }} title={clip ? 'Clipping!' : 'No clip'} />
+    </div>
+  )
+}
+
 export function TransportBar() {
   const tempo = useStore((s) => s.project.tempo)
   const timeSig = useStore((s) => s.project.timeSig)
@@ -35,11 +67,11 @@ export function TransportBar() {
   return (
     <div className="transport">
       <span className="logo">◉ OpenStudio</span>
-      <button onClick={() => { engine.ensure(); engine.setPosition(0) }} title="Rewind">⏮</button>
-      <button className={playing ? 'active' : ''} onClick={() => engine.togglePlay()} title="Play/Stop (Space)">
+      <button onClick={() => { engine.ensure(); engine.setPosition(0) }} title="Return to zero">⏮</button>
+      <button className={playing ? 'active' : ''} onClick={() => engine.togglePlay()} title="Play/Pause (Space)">
         {playing ? '⏸' : '▶'}
       </button>
-      <button onClick={() => engine.stop()} title="Stop">⏹</button>
+      <button onClick={() => engine.stopReturn()} title="Stop (return to play start; press again for zero)">⏹</button>
       <button
         className={recording ? 'rec-active' : ''}
         onClick={() => (recording ? void engine.stopRecord() : void engine.record())}
@@ -48,6 +80,7 @@ export function TransportBar() {
         ⏺
       </button>
       <span className="time">{pos}</span>
+      <MasterMeter />
       <div className="tempo-box">
         <input
           type="number"

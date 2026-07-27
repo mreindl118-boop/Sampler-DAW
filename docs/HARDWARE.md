@@ -1,5 +1,16 @@
 # Hardware guide — interfaces, controllers, ROLI
 
+## Line 6 Helix Stadium XL
+
+OpenStudio ships a device profile for the Stadium (auto-detected by name; toggle in ⚙ Settings):
+
+- **Selection & hot-plug**: plug it in and it's auto-routed for input and output (Settings → Audio devices to override). Unplugging falls back to the system default with a notice; replugging restores the routing.
+- **Channels**: per-track input source on each mixer strip — *In 1/2* for the processed stereo signal, *In 7* for the dry DI (re-amp source). Arm two tracks with those sources and record once for a **dual-signal take**. Note the browser-channel caveat in docs/AUDIT.md.
+- **Re-amping**: ⚙ Settings → Re-amp. Sends a dry track to an output pair (feed the Stadium's re-amp input), records the processed return, and drops it on a new track aligned via the measured round-trip offset. Run *Measure (loopback)* first.
+- **Monitoring**: the Stadium hardware-monitors USB 1/2 by itself; the per-track 👂 toggle adds software monitoring, and the app warns if both are active.
+- **MIDI**: map footswitches to transport actions with MIDI-learn (Settings → MIDI); markers on the timeline send Program Change (preset) and CC69 (snapshot) per song section; enable MIDI clock so tempo-synced delays follow the project BPM.
+- **Verification**: Settings → Diagnostics runs enumeration, per-channel capture and latency checks; `npm run qa` runs the automated suite.
+
 ## Recording real instruments (XLR / ¼″)
 
 OpenStudio records from **any input the OS exposes**. For XLR microphones and ¼″ (TS/TRS) guitar/synth

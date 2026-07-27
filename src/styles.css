@@ -193,6 +193,36 @@ input[type='range'] { accent-color: var(--accent); }
 
 .scroll-x { overflow-x: auto; }
 
+/* ---------- meters ---------- */
+.vmeter {
+  width: 8px; background: #0a0b0e; border: 1px solid var(--border); border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.vmeter-fill { position: absolute; bottom: 0; left: 0; right: 0; }
+
+/* ---------- automation ---------- */
+.auto-lane {
+  border-bottom: 1px solid var(--border);
+  background: #10131b;
+  cursor: crosshair;
+}
+.auto-pt {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--accent); cursor: grab; z-index: 2;
+}
+
+/* ---------- toasts ---------- */
+.toasts {
+  position: fixed; right: 12px; bottom: 12px; z-index: 100;
+  display: flex; flex-direction: column; gap: 6px; max-width: 380px;
+}
+.toast {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; font-size: 12px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.toast-warn { border-color: var(--yellow); }
+.toast-error { border-color: var(--red); }
+
 @media (max-width: 760px) {
   .track-heads { min-width: 120px; }
   .transport { gap: 5px; padding: 6px; }

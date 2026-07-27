@@ -23,11 +23,17 @@ projects autosave to local storage with samples in IndexedDB.
 | **Sequencing** | Multi-track arranger with draggable/resizable MIDI + audio clips, piano roll (draw, drag, resize, right-click delete, scale highlighting), 16th-note step sequencer for drums |
 | **Mixer & FX** | Per-track volume/pan/mute/solo, FX chains: reverb, delay, chorus, distortion, 3-band EQ, compressor, filter, bitcrusher |
 | **Chord tools** | Key + scale selection, diatonic chord pads with roman numerals, 23 chord qualities, 10 classic progressions with audition, insert-to-clip |
-| **Recording** | Audio from any input device — **XLR / ¼″ instruments via a USB audio interface** — captured as lossless PCM; MIDI recording from any controller into clips |
+| **Recording** | Multi-channel lossless capture from any interface — **XLR / ¼″ via USB interfaces**, per-track input channel/pair selection, dual-signal takes (processed + dry DI simultaneously), latency-compensated; MIDI recording from any controller |
+| **Outboard / Helix Stadium** | Device profile with auto-detect, hot-plug fallback & restore, output-pair routing, software monitoring with double-monitor warning, **re-amp workflow** with round-trip compensation, loopback latency measurement, diagnostics runner |
 | **ROLI / MPE** | Full MPE input: per-note pitch bend (glide, ±48 st), CC74 slide → filter brightness, channel pressure → loudness |
-| **Controllers** | Web MIDI (all class-compliant devices), Bluetooth MIDI (OS-paired, plus direct BLE-MIDI connect in Chrome/Android), multi-touch on-screen piano, QWERTY playing |
-| **I/O** | WAV mixdown export (offline render), project save/open as portable JSON (samples embedded), autosave |
+| **Controllers** | Web MIDI in/out, **MIDI-learn** (footswitch → transport), marker-driven Program Change/CC to hardware (Helix presets/snapshots), **MIDI clock out** at session tempo, Bluetooth MIDI, multi-touch on-screen piano, QWERTY playing |
+| **Editing** | Waveforms on clips, trim both edges, split/duplicate/copy/paste, per-clip gain + fades, snap toggle, quantize, velocity editing, **volume/pan automation lanes** (live + in export) |
+| **Metering** | Master peak/clip meter + per-track meters |
+| **I/O** | WAV mixdown export (offline render honoring fades/automation), project save/open as portable JSON (samples embedded), autosave with unload flush |
 | **Platform** | Installable PWA (offline-capable), landscape-first layout, touch-friendly hit targets |
+
+Feature-by-feature audit status (with browser-platform caveats): [docs/AUDIT.md](docs/AUDIT.md).
+Automated regression: `npm run build && npx vite preview & npm run qa` (21 headless checks).
 
 ## Quick tour
 

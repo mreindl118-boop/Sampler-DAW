@@ -1,5 +1,6 @@
 import type { Project } from '../state/types'
 import { engine } from '../audio/engine'
+import { audioIO } from '../audio/audioIO'
 import { sampleStore } from '../audio/sampler'
 import { audioBufferToWav, base64ToArrayBuffer, blobToBase64, downloadBlob } from '../audio/wav'
 import { loadSampleFromIDB, saveSampleToIDB } from './idb'
@@ -12,7 +13,10 @@ interface ProjectFile {
   samples: Record<string, string> // sampleId -> base64 WAV
 }
 
-export async function exportProjectFile(project: Project): Promise<void> {
+export async function exportProjectFile(rawProject: Project): Promise<void> {
+  // stamp active device labels so routing can be restored by name elsewhere
+  const io = audioIO.status()
+  const project: Project = { ...rawProject, io: { inputLabel: io.activeInputLabel, outputLabel: io.activeOutputLabel } }
   const samples: Record<string, string> = {}
   for (const meta of project.samples) {
     const buf = sampleStore.get(meta.id)
