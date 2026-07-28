@@ -8,6 +8,7 @@ import { InstrumentEditor } from './ui/InstrumentEditor'
 import { ChordPanel } from './ui/ChordPanel'
 import { VirtualKeyboard } from './ui/VirtualKeyboard'
 import { SettingsModal } from './ui/Settings'
+import { HelpModal, Welcome } from './ui/Welcome'
 import { Toasts } from './ui/Toasts'
 import { engine } from './audio/engine'
 import { initMidi } from './midi/midi'
@@ -30,6 +31,14 @@ const TABS: { id: BottomTab; label: string; icon: IconName }[] = [
 
 export default function App() {
   const tab = useStore((s) => s.ui.bottomTab)
+  const selTrack = useStore((s) => s.project.tracks.find((t) => t.id === s.ui.selectedTrackId) ?? null)
+  const selClipName = useStore((s) => {
+    for (const t of s.project.tracks) {
+      const c = t.clips.find((cl) => cl.id === s.ui.selectedClipId)
+      if (c) return c.name
+    }
+    return null
+  })
 
   useEffect(() => {
     void initMidi()
@@ -95,6 +104,14 @@ export default function App() {
                 {t.label}
               </button>
             ))}
+            <div style={{ flex: 1 }} />
+            {selTrack && (
+              <div className="context-chip" title="What the editor below is targeting — select tracks/clips in the timeline above">
+                <span className="cc-dot" style={{ background: selTrack.color }} />
+                <span>{selTrack.name}</span>
+                {selClipName && <span className="cc-clip">▸ {selClipName}</span>}
+              </div>
+            )}
           </div>
           <div className="tab-body">
             {tab === 'keys' && <VirtualKeyboard />}
@@ -107,6 +124,8 @@ export default function App() {
         </div>
       </div>
       <SettingsModal />
+      <HelpModal />
+      <Welcome />
       <Toasts />
     </div>
   )

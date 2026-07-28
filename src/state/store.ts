@@ -111,6 +111,7 @@ function initialState(): AppState {
       snap: 0.25,
       snapOn: true,
       showSettings: false,
+      showHelp: false,
       recording: false,
       midiInputs: [],
       mpeEnabled: true,

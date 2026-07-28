@@ -24,7 +24,9 @@ function resolveDrumClip(): { track: Track; clip: MidiClip } | null {
 export function createDrumClipHere(): void {
   let track = getState().project.tracks.find((t) => t.kind === 'drums')
   if (!track) track = addTrack('drums')
-  const clip = addMidiClip(track.id, Math.floor(engine.position()), 4)
+  // place after existing clips so nothing stacks invisibly
+  const start = Math.max(Math.floor(engine.position()), ...track.clips.map((c) => Math.ceil(c.start + c.length)), 0)
+  const clip = addMidiClip(track.id, start, 4)
   setUI({ selectedTrackId: track.id, selectedClipId: clip.id, bottomTab: 'steps' })
 }
 

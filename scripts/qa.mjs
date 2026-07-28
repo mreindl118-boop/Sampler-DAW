@@ -44,8 +44,13 @@ page.on('dialog', (d) => void d.accept())
 await page.goto(url, { waitUntil: 'networkidle' })
 await page.waitForTimeout(600)
 
-// 1. boot
+// 1. boot + first-launch guidance
 check('App boots', await page.$('.transport') !== null)
+check('Welcome overlay shows on first launch', (await page.$('.welcome')) !== null)
+await page.click('.welcome-card:has-text("Make a beat")')
+await page.waitForTimeout(500)
+check('Welcome "Make a beat" lands in the step grid', (await page.$('.step-cell')) !== null)
+check('Welcome dismissed after action', (await page.$('.welcome')) === null)
 
 // 2. transport
 await page.click('button[title="Play/Pause (Space)"]')

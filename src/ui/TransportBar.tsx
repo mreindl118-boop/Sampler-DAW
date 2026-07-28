@@ -165,6 +165,7 @@ export function TransportBar() {
       >
         {exporting ? 'Rendering…' : 'Export WAV'}
       </button>
+      <button onClick={() => setUI({ showHelp: true })} title="Help — workflow, gestures, shortcuts" style={{ fontWeight: 700 }}>?</button>
       <button onClick={() => setUI({ showSettings: true })} title="Settings"><Ic n="gear" /></button>
     </div>
   )

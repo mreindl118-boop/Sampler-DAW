@@ -15,6 +15,22 @@ const LANE_H = 56
 const AUTO_H = 44
 const HEAD_W = 168
 
+/** Track creation without dead ends: instrument tracks get a starter clip and the right editor opens. */
+function addTrackWithClip(kind: 'synth' | 'sampler' | 'drums' | 'audio'): void {
+  const track = addTrack(kind)
+  if (kind === 'audio') {
+    toast('Arm ● and press ⏺ to record, or drag an audio file onto the lane', 'info', 6000)
+    return
+  }
+  addMidiClip(track.id, Math.floor(engine.position()), 4)
+  if (kind === 'drums') setUI({ bottomTab: 'steps' })
+  else if (kind === 'synth') setUI({ bottomTab: 'piano' })
+  else {
+    setUI({ bottomTab: 'instrument' })
+    toast('Import or pick a sample in the Instrument tab, then draw notes in the Piano Roll', 'info', 7000)
+  }
+}
+
 export function Arranger() {
   const tracks = useStore((s) => s.project.tracks)
   const bars = useStore((s) => s.project.bars)
@@ -107,10 +123,10 @@ export function Arranger() {
     <div className="arranger-wrap">
       <div style={{ display: 'flex', gap: 6, padding: '5px 8px', background: 'var(--panel)', alignItems: 'center', flexWrap: 'wrap' }}>
         <span className="section-title">Tracks</span>
-        <button className="small" onClick={() => addTrack('synth')}>+ Synth</button>
-        <button className="small" onClick={() => addTrack('sampler')}>+ Sampler</button>
-        <button className="small" onClick={() => addTrack('drums')}>+ Drums</button>
-        <button className="small" onClick={() => addTrack('audio')}>+ Audio</button>
+        <button className="small" onClick={() => addTrackWithClip('synth')} title="New synth track with a starter clip, opens the piano roll">+ Synth</button>
+        <button className="small" onClick={() => addTrackWithClip('sampler')} title="New sampler track — load a sample, then draw notes">+ Sampler</button>
+        <button className="small" onClick={() => addTrackWithClip('drums')} title="New drum track with a starter clip, opens the step grid">+ Drums</button>
+        <button className="small" onClick={() => addTrackWithClip('audio')} title="New audio track — arm it and record, or drop a file">+ Audio</button>
         <button className="small" onClick={() => importRef.current?.click()} title="Import audio to timeline"><Ic n="import" size={12} />Import</button>
         <button
           className="small"

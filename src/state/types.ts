@@ -181,6 +181,7 @@ export interface UIState {
   snap: number // beats (0.25 = 1/16 in 4/4)
   snapOn: boolean
   showSettings: boolean
+  showHelp: boolean
   recording: boolean
   midiInputs: string[]
   mpeEnabled: boolean

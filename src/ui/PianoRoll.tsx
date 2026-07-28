@@ -27,13 +27,14 @@ function resolvePianoClip(): { track: Track; clip: MidiClip } | null {
   return track && clip ? { track, clip } : null
 }
 
-function createMelodicClipHere(): void {
+export function createMelodicClipHere(): void {
   const sel = findTrack(getState().ui.selectedTrackId)
   let track = sel && (sel.kind === 'synth' || sel.kind === 'sampler')
     ? sel
     : getState().project.tracks.find((t) => t.kind === 'synth' || t.kind === 'sampler')
   if (!track) track = addTrack('synth')
-  const clip = addMidiClip(track.id, Math.floor(engine.position()), 4)
+  const start = Math.max(Math.floor(engine.position()), ...track.clips.map((c) => Math.ceil(c.start + c.length)), 0)
+  const clip = addMidiClip(track.id, start, 4)
   setUI({ selectedTrackId: track.id, selectedClipId: clip.id, bottomTab: 'piano' })
 }
 
