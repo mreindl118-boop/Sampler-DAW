@@ -1,14 +1,41 @@
 import { useEffect, useRef } from 'react'
+import type { MidiClip, Track } from '../state/types'
 import { engine } from '../audio/engine'
 import { scalePitchSet } from '../music/theory'
 import { midiToName } from '../music/theory'
 import {
-  addNote, beginGesture, findClip, getState, quantizeClip, removeNote, updateNote, useStore,
+  addMidiClip, addNote, addTrack, beginGesture, findClip, findTrack, getState, quantizeClip, removeNote, setUI, updateNote, useStore,
 } from '../state/store'
 
 const LOW = 24 // C1
 const HIGH = 108 // C8
 const ROW_H = 16
+
+/** Resolve the clip to edit: the selected melodic clip, or the first clip on a melodic track. */
+function resolvePianoClip(): { track: Track; clip: MidiClip } | null {
+  const { ui } = getState()
+  const found = findClip(ui.selectedClipId)
+  if (found && found.clip.kind === 'midi' && found.track.kind !== 'drums') {
+    return { track: found.track, clip: found.clip }
+  }
+  const sel = findTrack(ui.selectedTrackId)
+  const track =
+    sel && (sel.kind === 'synth' || sel.kind === 'sampler')
+      ? sel
+      : getState().project.tracks.find((t) => t.kind === 'synth' || t.kind === 'sampler')
+  const clip = track?.clips.find((c): c is MidiClip => c.kind === 'midi')
+  return track && clip ? { track, clip } : null
+}
+
+function createMelodicClipHere(): void {
+  const sel = findTrack(getState().ui.selectedTrackId)
+  let track = sel && (sel.kind === 'synth' || sel.kind === 'sampler')
+    ? sel
+    : getState().project.tracks.find((t) => t.kind === 'synth' || t.kind === 'sampler')
+  if (!track) track = addTrack('synth')
+  const clip = addMidiClip(track.id, Math.floor(engine.position()), 4)
+  setUI({ selectedTrackId: track.id, selectedClipId: clip.id, bottomTab: 'piano' })
+}
 
 export function PianoRoll() {
   const selectedClipId = useStore((s) => s.ui.selectedClipId)
@@ -17,7 +44,8 @@ export function PianoRoll() {
   const scale = useStore((s) => s.project.scale)
   // subscribe to project changes so note edits re-render
   useStore((s) => s.project)
-  const found = findClip(selectedClipId)
+  useStore((s) => s.ui.selectedTrackId)
+  const found = resolvePianoClip()
   const scrollRef = useRef<HTMLDivElement>(null)
   const playheadRef = useRef<HTMLDivElement>(null)
 
@@ -31,7 +59,7 @@ export function PianoRoll() {
   useEffect(() => {
     let raf = 0
     const tick = () => {
-      const f = findClip(getState().ui.selectedClipId)
+      const f = resolvePianoClip()
       if (playheadRef.current && f) {
         const rel = engine.position() - f.clip.start
         playheadRef.current.style.display = rel >= 0 && rel <= f.clip.length ? 'block' : 'none'
@@ -43,11 +71,14 @@ export function PianoRoll() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  if (!found || found.clip.kind !== 'midi') {
-    return <Empty message="Select or double-click a MIDI clip in the arranger to edit notes." />
-  }
-  if (found.track.kind === 'drums') {
-    return <Empty message="This is a drum clip — use the Steps tab for the step sequencer." />
+  if (!found) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-dim)' }}>
+        <span>No clip selected — melodies and chords are drawn here.</span>
+        <button onClick={() => createMelodicClipHere()}>＋ Create a clip at the playhead</button>
+        <span className="hint">You can also double-click any empty spot on a Synth or Sampler lane in the arranger.</span>
+      </div>
+    )
   }
   const { track, clip } = found
   const rows = HIGH - LOW

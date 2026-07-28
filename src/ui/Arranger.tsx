@@ -112,6 +112,21 @@ export function Arranger() {
         <button className="small" onClick={() => addTrack('drums')}>+ Drums</button>
         <button className="small" onClick={() => addTrack('audio')}>+ Audio</button>
         <button className="small" onClick={() => importRef.current?.click()} title="Import audio to timeline"><Ic n="import" size={12} />Import</button>
+        <button
+          className="small"
+          title="Create a clip at the playhead on the selected track"
+          onClick={() => {
+            const track = getState().project.tracks.find((t) => t.id === getState().ui.selectedTrackId)
+            if (!track) return
+            if (track.kind === 'audio') {
+              toast('Audio tracks get clips by recording (arm ● + ⏺) or importing/dropping a file', 'info')
+              return
+            }
+            const beat = snapFloor(engine.position(), snap, snapOn)
+            addMidiClip(track.id, beat, 4)
+            setUI({ bottomTab: track.kind === 'drums' ? 'steps' : 'piano' })
+          }}
+        ><Ic n="plus" size={12} />Clip</button>
         <input
           ref={importRef} type="file" accept="audio/*" multiple style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files?.length) void importAudio(e.target.files); e.target.value = '' }}
@@ -245,12 +260,28 @@ function MarkerFlag({ marker, zoomX }: { marker: { id: string; beat: number; nam
   )
 }
 
+/** Selecting a track also targets its first clip and routes the bottom editor to the right tool. */
+export function selectTrackSmart(track: Track): void {
+  const { ui } = getState()
+  const firstClip = track.clips[0]
+  const clipStillOnTrack = track.clips.some((c) => c.id === ui.selectedClipId)
+  const patch: Parameters<typeof setUI>[0] = {
+    selectedTrackId: track.id,
+    selectedClipId: clipStillOnTrack ? ui.selectedClipId : firstClip?.id ?? ui.selectedClipId,
+  }
+  if (ui.bottomTab === 'piano' || ui.bottomTab === 'steps') {
+    if (track.kind === 'drums') patch.bottomTab = 'steps'
+    else if (track.kind === 'synth' || track.kind === 'sampler') patch.bottomTab = 'piano'
+  }
+  setUI(patch)
+}
+
 function TrackHead({ track, selected }: { track: Track; selected: boolean }) {
   const [editing, setEditing] = useState(false)
   return (
     <div
       className={`track-head ${selected ? 'selected' : ''}`}
-      onClick={() => setUI({ selectedTrackId: track.id })}
+      onClick={() => selectTrackSmart(track)}
       style={{ borderLeft: `3px solid ${track.color}`, height: track.showAutomation ? LANE_H + AUTO_H : LANE_H }}
     >
       {editing ? (
@@ -314,7 +345,7 @@ function Lane({
     <div
       className="lane"
       onDoubleClick={onDoubleClick}
-      onClick={() => setUI({ selectedTrackId: track.id })}
+      onClick={() => selectTrackSmart(track)}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('Files')) e.preventDefault()
       }}
@@ -325,6 +356,15 @@ function Lane({
         void onImport(e.dataTransfer.files, track.kind === 'audio' ? track.id : undefined, beat)
       }}
     >
+      {track.clips.length === 0 && (
+        <div className="lane-hint">
+          {track.kind === 'audio'
+            ? 'arm ● and hit record — or drop an audio file here'
+            : track.kind === 'drums'
+              ? 'double-click to create a beat, then program it in Steps'
+              : 'double-click to create a clip, then draw notes in Piano Roll'}
+        </div>
+      )}
       {track.clips.map((c) => (
         <ClipView key={c.id} track={track} clip={c} zoomX={zoomX} snap={snap} snapOn={snapOn} selected={c.id === selectedClipId} beatAtClientX={beatAtClientX} />
       ))}
