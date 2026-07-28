@@ -187,7 +187,7 @@ function SettingsInner() {
               <div style={{ flex: 1 }}>
                 {midiSupported() ? (
                   midiInputsInfo().length > 0 ? (
-                    midiInputsInfo().map((n) => <div key={n.id} style={{ fontSize: 12 }}>🎹 {n.name}</div>)
+                    midiInputsInfo().map((n) => <div key={n.id} style={{ fontSize: 12 }}>• {n.name}</div>)
                   ) : (
                     <span className="hint">No MIDI inputs — connect a device (USB or Bluetooth).</span>
                   )

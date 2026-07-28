@@ -6,7 +6,8 @@ export function uid(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${idCounter.toString(36)}`
 }
 
-export const TRACK_COLORS = ['#2f81f7', '#57d9a3', '#f7b32f', '#f75f5f', '#b48cf2', '#4fd2e8', '#f28cc7', '#9acd32']
+/* harmonized "tape label" set — desaturated enough for dark ink to sit on top */
+export const TRACK_COLORS = ['#e8a14d', '#6ec6a8', '#7aa2e8', '#e07a7a', '#b995e0', '#5fc4dd', '#e08cba', '#a8c46e']
 
 export function defaultSynth(): SynthParams {
   return {

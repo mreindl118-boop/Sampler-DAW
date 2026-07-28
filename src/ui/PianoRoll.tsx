@@ -129,7 +129,7 @@ export function PianoRoll() {
               key={b}
               style={{
                 position: 'absolute', top: 0, bottom: 0, left: b * zoom, width: 1,
-                background: b % 4 === 0 ? '#333a4d' : '#232838', pointerEvents: 'none',
+                background: b % 4 === 0 ? '#2c2f36' : '#1d1f24', pointerEvents: 'none',
               }}
             />
           ))}

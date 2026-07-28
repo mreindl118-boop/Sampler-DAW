@@ -16,15 +16,16 @@ import {
   copyClip, duplicateClip, findClip, getState, pasteClip, redo, removeClip, setUI, splitClip, undo, useStore,
 } from './state/store'
 import { toast } from './state/toasts'
+import { Ic, type IconName } from './ui/icons'
 import type { BottomTab } from './state/types'
 
-const TABS: { id: BottomTab; label: string }[] = [
-  { id: 'keys', label: '🎹 Keys' },
-  { id: 'piano', label: '𝄞 Piano Roll' },
-  { id: 'steps', label: '▦ Steps' },
-  { id: 'chords', label: '♯ Chords' },
-  { id: 'instrument', label: '⚡ Instrument' },
-  { id: 'mixer', label: '🎚 Mixer' },
+const TABS: { id: BottomTab; label: string; icon: IconName }[] = [
+  { id: 'keys', label: 'Keys', icon: 'keys' },
+  { id: 'piano', label: 'Piano Roll', icon: 'roll' },
+  { id: 'steps', label: 'Steps', icon: 'steps' },
+  { id: 'chords', label: 'Chords', icon: 'chords' },
+  { id: 'instrument', label: 'Instrument', icon: 'inst' },
+  { id: 'mixer', label: 'Mixer', icon: 'mixer' },
 ]
 
 export default function App() {
@@ -90,6 +91,7 @@ export default function App() {
           <div className="tabs">
             {TABS.map((t) => (
               <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setUI({ bottomTab: t.id })}>
+                <Ic n={t.icon} size={13} />
                 {t.label}
               </button>
             ))}

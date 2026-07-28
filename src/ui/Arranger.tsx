@@ -8,6 +8,7 @@ import {
   updateAutomationPoint, updateMarker, useStore,
 } from '../state/store'
 import { toast } from '../state/toasts'
+import { Ic } from './icons'
 import { Waveform, snapBeat, snapFloor } from './Waveform'
 
 const LANE_H = 56
@@ -110,13 +111,13 @@ export function Arranger() {
         <button className="small" onClick={() => addTrack('sampler')}>+ Sampler</button>
         <button className="small" onClick={() => addTrack('drums')}>+ Drums</button>
         <button className="small" onClick={() => addTrack('audio')}>+ Audio</button>
-        <button className="small" onClick={() => importRef.current?.click()} title="Import audio to timeline">Import ♪</button>
+        <button className="small" onClick={() => importRef.current?.click()} title="Import audio to timeline"><Ic n="import" size={12} />Import</button>
         <input
           ref={importRef} type="file" accept="audio/*" multiple style={{ display: 'none' }}
           onChange={(e) => { if (e.target.files?.length) void importAudio(e.target.files); e.target.value = '' }}
         />
         <span style={{ width: 8 }} />
-        <button className="small" onClick={doSplit} title="Split selected clip at playhead (Ctrl+E)">✂ Split</button>
+        <button className="small" onClick={doSplit} title="Split selected clip at playhead (Ctrl+E)"><Ic n="cut" size={12} />Split</button>
         <button
           className="small"
           onClick={() => {
@@ -124,8 +125,8 @@ export function Arranger() {
             if (f) duplicateClip(f.track.id, f.clip.id)
           }}
           title="Duplicate selected clip (Ctrl+D)"
-        >⧉ Dup</button>
-        <button className="small" onClick={() => engine.addMarkerAtPlayhead()} title="Add marker at playhead">🚩 Marker</button>
+        ><Ic n="dup" size={12} />Dup</button>
+        <button className="small" onClick={() => engine.addMarkerAtPlayhead()} title="Add marker at playhead"><Ic n="flag" size={12} />Marker</button>
         <div className="grow" style={{ flex: 1 }} />
         <button className={`small ${snapOn ? 'active' : ''}`} onClick={() => setUI({ snapOn: !snapOn })} title="Snap on/off">
           Snap
@@ -136,8 +137,8 @@ export function Arranger() {
           <option value={0.25}>1/16</option>
           <option value={0.125}>1/32</option>
         </select>
-        <button className="small" onClick={() => setUI({ zoomX: Math.max(8, zoomX / 1.4) })}>−</button>
-        <button className="small" onClick={() => setUI({ zoomX: Math.min(160, zoomX * 1.4) })}>+</button>
+        <button className="small" onClick={() => setUI({ zoomX: Math.max(8, zoomX / 1.4) })} title="Zoom out"><Ic n="minus" size={12} /></button>
+        <button className="small" onClick={() => setUI({ zoomX: Math.min(160, zoomX * 1.4) })} title="Zoom in"><Ic n="plus" size={12} /></button>
       </div>
       <div className="arranger" ref={scrollRef}>
         <div className="track-heads" style={{ minWidth: HEAD_W }}>
@@ -277,15 +278,15 @@ function TrackHead({ track, selected }: { track: Track; selected: boolean }) {
           }}
           title="Automation lane"
         >A</button>
-        <button onClick={(e) => { e.stopPropagation(); moveTrack(track.id, -1) }} title="Move up">↑</button>
-        <button onClick={(e) => { e.stopPropagation(); moveTrack(track.id, 1) }} title="Move down">↓</button>
+        <button onClick={(e) => { e.stopPropagation(); moveTrack(track.id, -1) }} title="Move up"><Ic n="up" size={10} /></button>
+        <button onClick={(e) => { e.stopPropagation(); moveTrack(track.id, 1) }} title="Move down"><Ic n="down" size={10} /></button>
         <button
           onClick={(e) => {
             e.stopPropagation()
             if (confirm(`Delete track "${track.name}"?`)) removeTrack(track.id)
           }}
           title="Delete track"
-        >✕</button>
+        ><Ic n="x" size={10} /></button>
       </div>
     </div>
   )
@@ -424,7 +425,7 @@ function ClipView({
       {cur.kind === 'midi' && <MiniNotes notes={cur.notes} length={cur.length} />}
       {cur.kind === 'audio' && (
         <div style={{ position: 'absolute', inset: '14px 2px 2px' }}>
-          <Waveform sampleId={cur.sampleId} offsetSec={cur.offset} durSec={cur.length * spb} />
+          <Waveform sampleId={cur.sampleId} offsetSec={cur.offset} durSec={cur.length * spb} color="rgba(12,12,16,0.7)" />
           {cur.fadeIn > 0 && (
             <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, (cur.fadeIn / cur.length) * 100)}%`, background: 'linear-gradient(to right, rgba(0,0,0,0.55), transparent)' }} />
           )}

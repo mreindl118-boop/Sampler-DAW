@@ -5,6 +5,7 @@ import { beginGesture, findClip, mapClip, mapTrack, setProject, setUI, useStore 
 import { engine } from '../audio/engine'
 import { audioIO, HELIX_STADIUM } from '../audio/audioIO'
 import { midiOutputs } from '../midi/midi'
+import { Ic } from './icons'
 
 function useMeter(trackId: string | null): number {
   const [level, setLevel] = useState(0)
@@ -142,7 +143,7 @@ function Strip({ track, selected, pairCount, onEditFx }: { track: Track; selecte
             className={track.monitor ? 'active' : ''}
             title="Software input monitoring (hear the input through this track while armed)"
             onClick={(e) => { e.stopPropagation(); mapTrack(track.id, (t) => ({ ...t, monitor: !t.monitor })) }}
-          >👂</button>
+          ><Ic n="phones" size={11} /></button>
         )}
       </div>
       {isAudio && (

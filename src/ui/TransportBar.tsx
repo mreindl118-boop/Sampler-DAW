@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Ic } from './icons'
 import { engine } from '../audio/engine'
 import { exportWav } from '../audio/exporter'
 import { exportProjectFile, importProjectFile } from '../util/projectio'
@@ -23,15 +24,15 @@ function MasterMeter() {
   const clip = performance.now() - clipRef.current < 1500
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} title="Master peak meter">
-      <div style={{ width: 90, height: 10, background: '#0a0b0e', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+      <div style={{ width: 90, height: 9, background: '#08090b', border: '1px solid #1e2126', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
         <div
           style={{
             width: `${Math.min(1, level) * 100}%`, height: '100%',
-            background: 'linear-gradient(to right, #57d9a3 0%, #57d9a3 65%, #f7b32f 85%, #f75f5f 100%)',
+            background: 'linear-gradient(to right, #6fd394 0%, #6fd394 65%, #f0a63c 85%, #ef5350 100%)',
           }}
         />
       </div>
-      <span style={{ width: 10, height: 10, borderRadius: 2, background: clip ? 'var(--red)' : '#222630' }} title={clip ? 'Clipping!' : 'No clip'} />
+      <span style={{ width: 9, height: 9, borderRadius: 2, background: clip ? 'var(--red)' : '#1e2126', boxShadow: clip ? '0 0 6px rgba(239,83,80,.7)' : 'none' }} title={clip ? 'Clipping!' : 'No clip'} />
     </div>
   )
 }
@@ -66,18 +67,24 @@ export function TransportBar() {
 
   return (
     <div className="transport">
-      <span className="logo">◉ OpenStudio</span>
-      <button onClick={() => { engine.ensure(); engine.setPosition(0) }} title="Return to zero">⏮</button>
+      <span className="logo">
+        <span className="logo-mark" />
+        OpenStudio
+        <span className="logo-sub">DAW</span>
+      </span>
+      <span className="t-sep" />
+      <button onClick={() => { engine.ensure(); engine.setPosition(0) }} title="Return to zero"><Ic n="rtz" /></button>
       <button className={playing ? 'active' : ''} onClick={() => engine.togglePlay()} title="Play/Pause (Space)">
-        {playing ? '⏸' : '▶'}
+        {playing ? <Ic n="pause" /> : <Ic n="play" />}
       </button>
-      <button onClick={() => engine.stopReturn()} title="Stop (return to play start; press again for zero)">⏹</button>
+      <button onClick={() => engine.stopReturn()} title="Stop (return to play start; press again for zero)"><Ic n="stop" /></button>
       <button
         className={recording ? 'rec-active' : ''}
+        style={{ color: recording ? undefined : 'var(--red)' }}
         onClick={() => (recording ? void engine.stopRecord() : void engine.record())}
         title="Record (arm a track first)"
       >
-        ⏺
+        <Ic n="record" />
       </button>
       <span className="time">{pos}</span>
       <MasterMeter />
@@ -89,7 +96,7 @@ export function TransportBar() {
           value={tempo}
           onChange={(e) => setProject((p) => ({ ...p, tempo: Math.min(300, Math.max(30, Number(e.target.value) || 120)) }))}
         />
-        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>BPM</span>
+        <span>BPM</span>
       </div>
       <select
         value={`${timeSig[0]}/${timeSig[1]}`}
@@ -107,7 +114,7 @@ export function TransportBar() {
         onClick={() => setProject((p) => ({ ...p, loop: { ...p.loop, on: !p.loop.on } }))}
         title="Loop"
       >
-        🔁
+        <Ic n="loop" />
       </button>
       <button
         className={metronome ? 'active' : ''}
@@ -117,10 +124,11 @@ export function TransportBar() {
         }}
         title="Metronome"
       >
-        🎵
+        <Ic n="metro" />
       </button>
-      <button className="small" onClick={() => undo()} title="Undo (Ctrl+Z)">↩</button>
-      <button className="small" onClick={() => redo()} title="Redo (Ctrl+Shift+Z)">↪</button>
+      <span className="t-sep" />
+      <button className="small" onClick={() => undo()} title="Undo (Ctrl+Z)"><Ic n="undo" size={13} /></button>
+      <button className="small" onClick={() => redo()} title="Redo (Ctrl+Shift+Z)"><Ic n="redo" size={13} /></button>
       <div className="grow" />
       <input
         type="text"
@@ -157,7 +165,7 @@ export function TransportBar() {
       >
         {exporting ? 'Rendering…' : 'Export WAV'}
       </button>
-      <button onClick={() => setUI({ showSettings: true })} title="Settings">⚙</button>
+      <button onClick={() => setUI({ showSettings: true })} title="Settings"><Ic n="gear" /></button>
     </div>
   )
 }
