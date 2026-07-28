@@ -513,7 +513,9 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
   font-size: 10px; font-weight: 600; letter-spacing: 0.03em;
   color: var(--text-dim);
   white-space: nowrap;
+  max-width: 240px; min-width: 0; overflow: hidden;
 }
+.context-chip span { overflow: hidden; text-overflow: ellipsis; }
 .cc-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .cc-clip { color: var(--faint); font-weight: 500; }
 
@@ -531,7 +533,9 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
   border-radius: 10px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 var(--line-soft);
   padding: 22px;
-  width: min(620px, 94vw);
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .welcome-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
 .welcome-head .logo-mark { width: 14px; height: 14px; margin-top: 4px; }
@@ -548,11 +552,13 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
   border-radius: 8px;
   text-align: left;
   color: var(--accent);
+  white-space: normal; /* buttons default to nowrap — cards must wrap their copy */
+  min-width: 0;
   transition: border-color 120ms, background 120ms, transform 120ms;
 }
 .welcome-card:hover { background: var(--bg3); border-color: rgba(240, 166, 60, 0.55); transform: translateY(-1px); }
-.wc-title { font-size: 13px; font-weight: 650; color: var(--text); }
-.wc-sub { font-size: 10.5px; color: var(--text-dim); line-height: 1.4; }
+.wc-title { font-size: 13px; font-weight: 650; color: var(--text); text-wrap: balance; }
+.wc-sub { font-size: 10.5px; color: var(--text-dim); line-height: 1.45; overflow-wrap: break-word; max-width: 100%; }
 .welcome-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
 
 /* ---------- help modal ---------- */
