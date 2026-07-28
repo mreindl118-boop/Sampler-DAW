@@ -279,8 +279,18 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
   position: absolute; top: 0; height: 26px;
   background: var(--accent-dim);
   border-left: 2px solid var(--accent); border-right: 2px solid var(--accent);
-  pointer-events: none;
+  cursor: grab;
+  z-index: 4;
+  touch-action: none;
 }
+.loop-region:hover { background: rgba(240, 166, 60, 0.22); }
+.loop-region:active { cursor: grabbing; }
+.loop-handle-l, .loop-handle-r {
+  position: absolute; top: 0; bottom: 0; width: 10px;
+  cursor: ew-resize;
+}
+.loop-handle-l { left: -5px; }
+.loop-handle-r { right: -5px; }
 .marker-flag { font-family: var(--mono); font-size: 9px !important; }
 
 /* ---------- piano roll ---------- */
@@ -316,11 +326,13 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
 
 /* ---------- step sequencer ---------- */
 .steps { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
-.step-row { display: flex; align-items: center; gap: 4px; }
+.step-row { display: flex; align-items: center; gap: 4px; width: max-content; }
 .step-row .lane-name {
-  width: 90px; font-size: 9.5px; font-weight: 600;
+  flex: 0 0 90px; /* fixed — rows must never shrink labels or columns drift out of alignment */
+  font-size: 9.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
   cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .step-row .lane-name:hover { color: var(--accent-hi); }
 .step-cell {
@@ -331,6 +343,12 @@ input[type='range']:hover::-moz-range-thumb { background: var(--accent); }
 }
 .step-cell:hover { border-color: #3a3e46; }
 .step-cell.beat-start { border-left: 2px solid #34363c; }
+.step-cell.bar-start { margin-left: 10px; } /* visual gap at each bar line in long patterns */
+.step-num {
+  width: 30px; flex-shrink: 0; text-align: center;
+  font-family: var(--mono); font-size: 8.5px; color: var(--faint);
+}
+.step-num.bar-start { margin-left: 10px; }
 .step-cell.on {
   background: var(--accent);
   border-color: var(--accent-hi);

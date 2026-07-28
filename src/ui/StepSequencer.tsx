@@ -87,6 +87,14 @@ export function StepSequencer() {
         <span className="section-title">{track.name} — {clip.name}</span>
         <span className="hint">Tap cells to program · lane names preview the sound</span>
       </div>
+      <div className="step-row">
+        <span className="lane-name" style={{ cursor: 'default' }} />
+        {Array.from({ length: steps }, (_, si) => (
+          <span key={si} className={`step-num ${si > 0 && si % 16 === 0 ? 'bar-start' : ''}`}>
+            {si % 16 === 0 ? `${si / 16 + 1}` : si % 4 === 0 ? '·' : ''}
+          </span>
+        ))}
+      </div>
       {lanes.map((lane, li) => (
         <div className="step-row" key={li}>
           <span
@@ -105,7 +113,7 @@ export function StepSequencer() {
               <div
                 key={si}
                 data-step={si}
-                className={`step-cell ${on ? 'on' : ''} ${si % 4 === 0 ? 'beat-start' : ''}`}
+                className={`step-cell ${on ? 'on' : ''} ${si % 4 === 0 ? 'beat-start' : ''} ${si > 0 && si % 16 === 0 ? 'bar-start' : ''}`}
                 onPointerDown={() => toggle(li, si)}
               />
             )

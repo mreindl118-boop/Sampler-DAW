@@ -69,7 +69,8 @@ export function Arranger() {
   }
 
   const onRulerPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('.marker-flag')) return
+    const target = e.target as HTMLElement
+    if (target.closest('.marker-flag') || target.closest('.loop-region')) return
     const startBeat = snapBeat(beatAtClientX(e.clientX), snap, snapOn)
     let dragged = false
     const move = (ev: PointerEvent) => {
@@ -84,6 +85,39 @@ export function Arranger() {
     }
     const up = () => {
       if (!dragged) engine.setPosition(startBeat)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  /** Grab the loop bar to move it; grab an edge to resize. Snaps to whole beats (free when Snap is off). */
+  const onLoopPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation()
+    const target = e.target as HTMLElement
+    const mode = target.classList.contains('loop-handle-l') ? 'l' : target.classList.contains('loop-handle-r') ? 'r' : 'move'
+    const downBeat = beatAtClientX(e.clientX)
+    const orig = { ...getState().project.loop }
+    const grid = snapOn ? 1 : 0.25
+    const q = (b: number) => Math.max(0, Math.round(b / grid) * grid)
+    const move = (ev: PointerEvent) => {
+      const delta = beatAtClientX(ev.clientX) - downBeat
+      setProject((p) => {
+        if (mode === 'move') {
+          const len = orig.end - orig.start
+          const start = q(orig.start + delta)
+          return { ...p, loop: { ...p.loop, start, end: start + len } }
+        }
+        if (mode === 'l') {
+          const start = Math.min(orig.end - grid, q(orig.start + delta))
+          return { ...p, loop: { ...p.loop, start } }
+        }
+        const end = Math.max(orig.start + grid, q(orig.end + delta))
+        return { ...p, loop: { ...p.loop, end } }
+      })
+    }
+    const up = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }
@@ -192,7 +226,15 @@ export function Arranger() {
               </span>
             ))}
             {loop.on && (
-              <div className="loop-region" style={{ left: loop.start * zoomX, width: (loop.end - loop.start) * zoomX }} />
+              <div
+                className="loop-region"
+                style={{ left: loop.start * zoomX, width: (loop.end - loop.start) * zoomX }}
+                title="Drag to move the loop · drag an edge to resize"
+                onPointerDown={onLoopPointerDown}
+              >
+                <div className="loop-handle-l" />
+                <div className="loop-handle-r" />
+              </div>
             )}
             {markers.map((m) => (
               <MarkerFlag key={m.id} marker={m} zoomX={zoomX} />
