@@ -191,6 +191,15 @@ export function Arranger() {
           }}
           title="Duplicate selected clip (Ctrl+D)"
         ><Ic n="dup" size={12} />Dup</button>
+        <button
+          className="small"
+          title="Delete selected clip (Del)"
+          onClick={() => {
+            const f = findClip(getState().ui.selectedClipId)
+            if (f) removeClip(f.track.id, f.clip.id)
+            else toast('Select a clip first', 'warn', 2500)
+          }}
+        ><Ic n="x" size={11} />Del</button>
         <button className="small" onClick={() => engine.addMarkerAtPlayhead()} title="Add marker at playhead"><Ic n="flag" size={12} />Marker</button>
         <div className="grow" style={{ flex: 1 }} />
         <button className={`small ${snapOn ? 'active' : ''}`} onClick={() => setUI({ snapOn: !snapOn })} title="Snap on/off">
@@ -448,12 +457,26 @@ function ClipView({
     e.stopPropagation()
     setUI({ selectedTrackId: track.id, selectedClipId: clip.id })
     const startBeatAtDown = beatAtClientX(e.clientX)
+    const startX = e.clientX
+    const startY = e.clientY
     const orig = { start: clip.start, length: clip.length, offset: clip.kind === 'audio' ? clip.offset : 0 }
     const target = e.target as HTMLElement
     const mode = target.classList.contains('clip-resize') ? 'resize' : target.classList.contains('clip-trim-l') ? 'trimL' : 'move'
     beginGesture()
     setDrag(true)
+    // touch: long-press without moving = delete (the right-click of iPad)
+    let lpFired = false
+    const lpTimer =
+      e.pointerType !== 'mouse'
+        ? setTimeout(() => {
+            lpFired = true
+            up()
+            if (confirm(`Delete clip "${clip.name}"?`)) removeClip(track.id, clip.id)
+          }, 600)
+        : null
     const move = (ev: PointerEvent) => {
+      if (lpFired) return
+      if (lpTimer && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 9) clearTimeout(lpTimer)
       const delta = beatAtClientX(ev.clientX) - startBeatAtDown
       if (mode === 'resize') {
         const newLen = Math.max(snapOn ? snap : 0.05, snapBeat(orig.length + delta, snap, snapOn))
@@ -480,6 +503,7 @@ function ClipView({
       }
     }
     const up = () => {
+      if (lpTimer) clearTimeout(lpTimer)
       setDrag(false)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)

@@ -166,6 +166,23 @@ check('Diagnostics: devices enumerated', diag.includes('inputs ('), '')
 check('Diagnostics: input capture ran', diag.includes('ch 1: peak'), '')
 check('Diagnostics: completed', diag.includes('completed without errors'), '')
 
+// interactive tutorial tour
+await page.click('.modal button:has-text("Close")').catch(() => {})
+await page.waitForTimeout(300)
+await page.click('button[title="Help — workflow, gestures, shortcuts"]')
+await page.waitForTimeout(300)
+check('Help modal opens', (await page.$('.modal')) !== null)
+await page.click('button:has-text("Start the interactive tour")')
+await page.waitForTimeout(600)
+check('Interactive tour opens with spotlight', (await page.$('.tour-card')) !== null && (await page.$('.tour-spot')) !== null)
+await page.click('.tour-card button:has-text("Next")')
+await page.waitForTimeout(400)
+const stepNum = await page.$eval('.tour-step-num', (el) => el.textContent)
+check('Tour advances through steps', stepNum.trim().startsWith('2'), stepNum)
+await page.click('.tour-card button:has-text("Skip tour")')
+await page.waitForTimeout(200)
+check('Tour dismisses', (await page.$('.tour-card')) === null)
+
 const errFiltered = errors.filter((e) => !e.includes('favicon'))
 check('Zero console errors across the whole run', errFiltered.length === 0, errFiltered.slice(0, 3).join(' | '))
 

@@ -9,6 +9,7 @@ import { ChordPanel } from './ui/ChordPanel'
 import { VirtualKeyboard } from './ui/VirtualKeyboard'
 import { SettingsModal } from './ui/Settings'
 import { HelpModal, Welcome } from './ui/Welcome'
+import { Tour } from './ui/Tour'
 import { Toasts } from './ui/Toasts'
 import { engine } from './audio/engine'
 import { initMidi } from './midi/midi'
@@ -126,6 +127,7 @@ export default function App() {
       <SettingsModal />
       <HelpModal />
       <Welcome />
+      <Tour />
       <Toasts />
     </div>
   )

@@ -47,6 +47,28 @@ export function ChordPanel() {
     )
   }
 
+  /** Tap = play; right-click or touch long-press = insert into the clip. */
+  const padHandlers = (pitches: number[]) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.button === 2) return
+      engine.playChord(pitches)
+      if (e.pointerType !== 'mouse') {
+        const t = setTimeout(() => insertChord(pitches), 600)
+        const clear = () => {
+          clearTimeout(t)
+          window.removeEventListener('pointerup', clear)
+          window.removeEventListener('pointercancel', clear)
+        }
+        window.addEventListener('pointerup', clear)
+        window.addEventListener('pointercancel', clear)
+      }
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault()
+      insertChord(pitches)
+    },
+  })
+
   const playProgression = (degrees: number[]) => {
     engine.ensure()
     const spb = 60 / getState().project.tempo
@@ -82,21 +104,10 @@ export function ChordPanel() {
         </select>
       </div>
 
-      <span className="section-title">Diatonic chords in {NOTE_NAMES[key]} {scale} — tap to play, right-click / long-press to insert into clip</span>
+      <span className="section-title">Diatonic chords in {NOTE_NAMES[key]} {scale} — tap to play · long-press or right-click to insert into clip</span>
       <div className="chord-row">
         {diatonic.map((c) => (
-          <div
-            key={c.degree}
-            className="chord-pad"
-            onPointerDown={(e) => {
-              if (e.button === 2) return
-              engine.playChord(chordNotes(rootMidi(c.rootMidi % 12), c.intervals))
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              insertChord(chordNotes(rootMidi(c.rootMidi % 12), c.intervals))
-            }}
-          >
+          <div key={c.degree} className="chord-pad" {...padHandlers(chordNotes(rootMidi(c.rootMidi % 12), c.intervals))}>
             <div className="roman">{c.roman}</div>
             <div className="sym">{c.symbol}</div>
           </div>
@@ -114,14 +125,7 @@ export function ChordPanel() {
             key={ct.symbol || 'maj'}
             className="chord-pad"
             style={{ minWidth: 56, padding: '6px 6px' }}
-            onPointerDown={(e) => {
-              if (e.button === 2) return
-              engine.playChord(chordNotes(rootMidi(chordRoot), ct.intervals))
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              insertChord(chordNotes(rootMidi(chordRoot), ct.intervals))
-            }}
+            {...padHandlers(chordNotes(rootMidi(chordRoot), ct.intervals))}
             title={ct.name}
           >
             <div className="sym" style={{ fontSize: 12 }}>{NOTE_NAMES[chordRoot]}{ct.symbol}</div>

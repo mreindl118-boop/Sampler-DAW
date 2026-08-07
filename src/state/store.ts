@@ -112,6 +112,7 @@ function initialState(): AppState {
       snapOn: true,
       showSettings: false,
       showHelp: false,
+      tourStep: null,
       recording: false,
       midiInputs: [],
       mpeEnabled: true,

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MidiClip, Track } from '../state/types'
 import { engine } from '../audio/engine'
 import { scalePitchSet } from '../music/theory'
@@ -49,6 +49,8 @@ export function PianoRoll() {
   const found = resolvePianoClip()
   const scrollRef = useRef<HTMLDivElement>(null)
   const playheadRef = useRef<HTMLDivElement>(null)
+  // touch devices need an explicit pan mode: one finger can either draw or scroll, not both
+  const [tool, setTool] = useState<'draw' | 'pan'>('draw')
 
   const zoom = 48 // px per beat in the roll
 
@@ -94,6 +96,7 @@ export function PianoRoll() {
   }
 
   const onGridPointerDown = (e: React.PointerEvent) => {
+    if (tool === 'pan' && e.pointerType !== 'mouse') return
     if ((e.target as HTMLElement).closest('.pr-note')) return
     const el = e.currentTarget as HTMLElement
     const { beat, pitch } = posFromEvent(e, el)
@@ -125,7 +128,9 @@ export function PianoRoll() {
         <button className="small" onClick={() => quantizeClip(track.id, clip.id, snap)} title="Snap all note starts to the grid">
           Quantize {snap === 1 ? '1 beat' : `1/${Math.round(4 / snap) * 4}`}
         </button>
-        <span className="hint">Draw: click · Move/resize: drag · Velocity: Alt+drag ↕ · Delete: right-click</span>
+        <button className={`small ${tool === 'draw' ? 'active' : ''}`} onClick={() => setTool('draw')} title="Tap the grid to place notes">✏ Draw</button>
+        <button className={`small ${tool === 'pan' ? 'active' : ''}`} onClick={() => setTool('pan')} title="One-finger scrolling on touch screens">✋ Pan</button>
+        <span className="hint">Draw: tap · Move/resize: drag · Velocity: Alt+drag ↕ · Delete: right-click / long-press</span>
       </div>
       <div style={{ overflow: 'auto', display: 'flex', flex: 1 }} ref={scrollRef}>
         <div className="pr-keys">
@@ -148,7 +153,11 @@ export function PianoRoll() {
             )
           })}
         </div>
-        <div className="pr-grid" style={{ width: gridW, minWidth: gridW }} onPointerDown={onGridPointerDown}>
+        <div
+          className="pr-grid"
+          style={{ width: gridW, minWidth: gridW, touchAction: tool === 'draw' ? 'none' : 'pan-x pan-y' }}
+          onPointerDown={onGridPointerDown}
+        >
           {Array.from({ length: rows }, (_, i) => {
             const pitch = HIGH - 1 - i
             const isBlack = [1, 3, 6, 8, 10].includes(pitch % 12)
@@ -194,7 +203,19 @@ function NoteView({
     const startY = e.clientY
     const orig = { ...note }
     beginGesture()
+    // touch long-press = delete note
+    let lpFired = false
+    const lpTimer =
+      e.pointerType !== 'mouse'
+        ? setTimeout(() => {
+            lpFired = true
+            up()
+            removeNote(trackId, clipId, note.id)
+          }, 600)
+        : null
     const move = (ev: PointerEvent) => {
+      if (lpFired) return
+      if (lpTimer && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 9) clearTimeout(lpTimer)
       const dBeat = (ev.clientX - startX) / zoom
       const dPitch = Math.round((startY - ev.clientY) / ROW_H)
       if (velocityMode) {
@@ -210,6 +231,7 @@ function NoteView({
       }
     }
     const up = () => {
+      if (lpTimer) clearTimeout(lpTimer)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
     }

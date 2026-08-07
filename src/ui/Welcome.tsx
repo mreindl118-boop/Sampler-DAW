@@ -79,7 +79,8 @@ export function Welcome() {
           </button>
         </div>
         <div className="welcome-foot">
-          <span className="hint">The ? button up top reopens this guide plus gestures & shortcuts, any time.</span>
+          <button onClick={() => { done(); setUI({ tourStep: 0 }) }}>🧭 Take the 2-minute tour</button>
+          <span className="hint" style={{ flex: 1 }}>The ? button up top reopens the guide any time.</span>
           <button className="small" onClick={done}>Skip</button>
         </div>
       </div>
@@ -97,7 +98,14 @@ export function HelpModal() {
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 94vw)' }}>
         <h3>How OpenStudio works</h3>
 
-        <h4 style={{ marginBottom: 6 }}>The 3-step loop</h4>
+        <div className="row">
+          <button className="active" onClick={() => setUI({ showHelp: false, tourStep: 0 })}>
+            🧭 Start the interactive tour
+          </button>
+          <span className="hint">11 quick steps, right on top of the real interface.</span>
+        </div>
+
+        <h4 style={{ margin: '12px 0 6px' }}>The 3-step loop</h4>
         <ol className="help-list">
           <li><b>Add a track</b> (＋ Synth / Drums / Sampler / Audio above the timeline) — instrument tracks come with a starter clip.</li>
           <li><b>Fill the clip</b> — drums in <b>Steps</b>, melodies & chords in <b>Piano Roll</b> (the Chords tab can insert whole progressions).</li>
@@ -112,6 +120,15 @@ export function HelpModal() {
           <li>Drop an audio file on any lane to import it at that spot</li>
           <li>Piano roll: click to draw · Alt+drag ↕ on a note = velocity · right-click = delete</li>
           <li>A button on a track head → automation lane (click to add points, right-click to remove)</li>
+        </ul>
+
+        <h4 style={{ margin: '12px 0 6px' }}>On iPad & touch</h4>
+        <ul className="help-list">
+          <li>Long-press = right-click everywhere: delete clips and notes, insert chords from pads</li>
+          <li>Double-tap a lane → new clip · double-tap a clip → its editor</li>
+          <li>Piano roll has a <b>Draw / Pan</b> switch: Draw to place notes, Pan to scroll with a finger</li>
+          <li>The on-screen keyboard is fully multi-touch; strike lower on a key for higher velocity</li>
+          <li>Install from Safari via Share → <b>Add to Home Screen</b> for fullscreen use</li>
         </ul>
 
         <h4 style={{ margin: '12px 0 6px' }}>Shortcuts</h4>

@@ -182,6 +182,7 @@ export interface UIState {
   snapOn: boolean
   showSettings: boolean
   showHelp: boolean
+  tourStep: number | null
   recording: boolean
   midiInputs: string[]
   mpeEnabled: boolean
