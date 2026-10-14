@@ -1,7 +1,7 @@
 /* Offline service worker for OpenStudio.
    Navigations are network-first so a new deploy is picked up immediately;
    hashed assets are cache-first (their names change on every build). */
-const CACHE = 'openstudio-v2'
+const CACHE = 'soundlab-studio-v3'
 
 self.addEventListener('install', () => {
   self.skipWaiting()
