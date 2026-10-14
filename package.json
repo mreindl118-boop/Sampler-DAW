@@ -4,7 +4,6 @@
   "version": "0.2.0",
   "description": "SoundLAB Studio — synthesizer, sampler and DAW with shared MIDI keyboard setup",
   "author": "SoundLAB contributors",
-  "license": "MIT",
   "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
