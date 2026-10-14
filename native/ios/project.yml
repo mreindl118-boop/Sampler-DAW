@@ -26,6 +26,7 @@ targets:
       properties:
         CFBundleDisplayName: SoundLAB Studio
         NSBluetoothAlwaysUsageDescription: Connect your MIDI keyboard wirelessly to play SoundLAB and control its key lights.
+        NSMicrophoneUsageDescription: Record audio from your microphone or connected audio input into SoundLAB tracks and samples.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

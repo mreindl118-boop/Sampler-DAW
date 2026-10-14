@@ -69,9 +69,9 @@ Keep private keys and passwords in protected CI secrets, never in assets, reposi
 
 Official references: [Electron security](https://www.electronjs.org/docs/latest/tutorial/security), [Electron permissions](https://www.electronjs.org/docs/latest/api/session), [electron-builder signing](https://www.electron.build/code-signing), [Apple distribution](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases), [Android signing](https://developer.android.com/studio/publish/app-signing).
 
-## Hardware acceptance before a release tag
+## Hardware acceptance before a production release
 
-The automated tests verify service behavior and packaging policy; they cannot certify a physical controller on every operating system. Record device model, OS version, app build, connection type and result for each platform before tagging:
+The automated tests verify service behavior and packaging policy; they cannot certify a physical controller on every operating system. Developer prereleases provide compiled artifacts for these checks. Record device model, OS version, app build, connection type and result for each platform before a production release:
 
 1. Install the packaged application, disconnect from the internet, and confirm bundled UI and audio work.
 2. Plug a class-compliant USB MIDI keyboard directly into the device using a data-capable cable/adapter. Confirm it appears automatically, note-on/off plays correctly, and unplugging silences held notes.

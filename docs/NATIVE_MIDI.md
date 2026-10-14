@@ -97,14 +97,28 @@ Messages can contain multiple MIDI messages or partial messages/SysEx; parse the
 
 Before claiming plug-and-play hardware support, perform the following on physical iPad/iPhone and Android devices: startup with USB attached, hotplug/unplug while notes are held, reconnect, suspend/resume, denied then granted Bluetooth permission, BLE discovery/cancel/connect, note-off/velocity/pressure/bend, multi-message chunks, running status, SysEx fragmentation and LED output, rapid key input, and host power/cable changes. Verify notes release on disconnect and that LED permission/control failures leave playing usable. Build/lint results do not substitute for those tests.
 
+## Microphone and audio-input recording limits
+
+The shared DAW's existing audio recorder opens input using `navigator.mediaDevices.getUserMedia({ audio: ... })`. These MIDI shells add keyboard transport, not a separate native audio recorder. The iOS project includes `NSMicrophoneUsageDescription` because access to the microphone or connected audio input requires a purpose string. That declaration prepares the permission request; it does not prove that recording works.
+
+The iOS shell loads its bundled UI through `soundlab://app`, so recording acceptance must explicitly check `window.isSecureContext`, `navigator.mediaDevices?.getUserMedia`, the microphone permission flow, input selection, captured audio, and saving the resulting recording on a physical iPad/iPhone. Some WebKit versions support capture from bundled custom schemes, but the installed OS/WebView behavior and app permissions must be verified together. No native iOS microphone, external audio interface, or multichannel recording test is claimed. Synthesizer playback and MIDI note capture do not establish audio-input recording support.
+
+The Android shell forwards the existing recorder's WebView audio-capture request through Android's `RECORD_AUDIO` runtime permission. It accepts only the bundled `https://appassets.androidplatform.net` origin while its trusted app page is in the foreground, and grants only `PermissionRequest.RESOURCE_AUDIO_CAPTURE`. Camera requests, mixed or unknown resource requests, and other origins are denied. Each request is checked independently; no broad or persistent WebView grant is stored. Canceled requests and navigation/background/destruction clear the pending request, and a later OS result cannot grant a replacement request. Denied microphone permission leaves MIDI and sample-file import usable.
+
+This permission integration preserves the shared DAW's browser recorder; it does not establish physical Android microphone, external-interface, input-channel, or recording-save verification. Those remain acceptance tests on actual devices. The HTTPS browser/PWA version uses the browser's capture permission flow where supported, with the same device-testing limits. Sample-file import remains independent of microphone capture.
+
 ## Official references
 
 - [WebKit Web MIDI implementation issue](https://bugs.webkit.org/show_bug.cgi?id=107250)
 - [CoreMIDI](https://developer.apple.com/documentation/coremidi)
 - [Apple Bluetooth MIDI chooser](https://developer.apple.com/documentation/coreaudiokit/cabtmidicentralviewcontroller)
 - [WKScriptMessageHandler](https://developer.apple.com/documentation/webkit/wkscriptmessagehandler)
+- [Apple microphone purpose string](https://developer.apple.com/documentation/bundleresources/information-property-list/nsmicrophoneusagedescription)
+- [WebKit bundled-content media capture issue](https://bugs.webkit.org/show_bug.cgi?id=220184)
 - [Android MIDI APIs](https://developer.android.com/reference/android/media/midi/package-summary)
 - [Android Bluetooth permissions](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
+- [Android WebView permission requests](https://developer.android.com/reference/android/webkit/PermissionRequest)
+- [Android runtime permissions](https://developer.android.com/training/permissions/requesting)
 - [Android WebView local content](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content)
 - [Android Gradle/SDK compatibility](https://developer.android.com/build/releases/about-agp)
 - [AndroidX WebKit releases](https://developer.android.com/jetpack/androidx/releases/webkit)

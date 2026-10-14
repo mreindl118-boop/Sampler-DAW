@@ -6,5 +6,5 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   build: { target: 'es2020' },
-  server: { host: true },
+  server: { host: true, watch: { ignored: ['**/release/**', '**/native/**/build/**'] } },
 })

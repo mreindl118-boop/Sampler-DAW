@@ -1,9 +1,11 @@
 package com.soundlab.studio;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,6 +17,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
 import android.webkit.ValueCallback;
+import android.webkit.PermissionRequest;
 import android.widget.TextView;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewCompat;
@@ -29,9 +32,13 @@ public final class MainActivity extends Activity {
     static final String ORIGIN = "https://appassets.androidplatform.net";
     static final String ENTRY = ORIGIN + "/app/index.html";
     private static final int PICK_FILE = 8430;
+    private static final int REQUEST_MICROPHONE = 8431;
     private WebView webView;
     private MidiBridge midi;
     private ValueCallback<Uri[]> fileSelection;
+    private PermissionRequest audioPermissionRequest;
+    private boolean microphonePermissionInFlight;
+    private boolean foreground;
 
     static boolean isTrusted(Uri uri) {
         return uri != null && "https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost())
@@ -57,6 +64,14 @@ public final class MainActivity extends Activity {
         webView.getSettings().setSupportMultipleWindows(false);
         webView.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override public void onPermissionRequest(PermissionRequest request) {
+                runOnUiThread(() -> requestAudioCapture(request));
+            }
+            @Override public void onPermissionRequestCanceled(PermissionRequest request) {
+                runOnUiThread(() -> {
+                    if (audioPermissionRequest == request) audioPermissionRequest = null;
+                });
+            }
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams parameters) {
                 if (!isTrusted(Uri.parse(view.getUrl() == null ? "" : view.getUrl()))) { callback.onReceiveValue(null); return true; }
                 if (fileSelection != null) fileSelection.onReceiveValue(null);
@@ -78,6 +93,9 @@ public final class MainActivity extends Activity {
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
             .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(new WebViewClient() {
+            @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                cancelAudioCaptureRequest();
+            }
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 if (!isTrusted(request.getUrl()) || !"GET".equals(request.getMethod())) return blocked();
                 WebResourceResponse response = loader.shouldInterceptRequest(request.getUrl());
@@ -119,19 +137,55 @@ public final class MainActivity extends Activity {
             new ByteArrayInputStream("Only bundled SoundLAB assets are allowed.".getBytes(StandardCharsets.UTF_8)));
     }
 
+    private boolean allowsAudioCapture(PermissionRequest request) {
+        String[] resources = request.getResources();
+        return foreground && webView != null && !isFinishing() && !isDestroyed()
+            && isTrustedOrigin(request.getOrigin())
+            && isTrusted(Uri.parse(webView.getUrl() == null ? "" : webView.getUrl()))
+            && resources != null && resources.length == 1
+            && PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resources[0]);
+    }
+
+    private void requestAudioCapture(PermissionRequest request) {
+        // Every request is checked independently. Never grant arbitrary or future WebView resources.
+        if (!allowsAudioCapture(request) || audioPermissionRequest != null || microphonePermissionInFlight) {
+            request.deny();
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            request.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+            return;
+        }
+        audioPermissionRequest = request;
+        microphonePermissionInFlight = true;
+        requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, REQUEST_MICROPHONE);
+    }
+
+    private void cancelAudioCaptureRequest() {
+        PermissionRequest pending = audioPermissionRequest;
+        audioPermissionRequest = null;
+        if (pending != null) pending.deny();
+        // Keep the in-flight flag until the OS result arrives; an old result must not grant a new request.
+    }
+
     @Override protected void onResume() {
         super.onResume();
+        foreground = true;
         if (webView != null) webView.onResume();
         if (midi != null) midi.resume();
     }
 
     @Override protected void onStop() {
+        foreground = false;
+        cancelAudioCaptureRequest();
         if (midi != null) midi.suspend();
         if (webView != null) webView.onPause();
         super.onStop();
     }
 
     @Override protected void onDestroy() {
+        foreground = false;
+        cancelAudioCaptureRequest();
         if (fileSelection != null) { fileSelection.onReceiveValue(null); fileSelection = null; }
         if (midi != null) midi.stop();
         if (webView != null) {
@@ -139,12 +193,24 @@ public final class MainActivity extends Activity {
                 WebViewCompat.removeWebMessageListener(webView, "SoundLabMidi");
             }
             webView.destroy();
+            webView = null;
         }
         super.onDestroy();
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_MICROPHONE) {
+            microphonePermissionInFlight = false;
+            PermissionRequest pending = audioPermissionRequest;
+            audioPermissionRequest = null;
+            if (pending != null) {
+                if (allowsAudioCapture(pending) && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    pending.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                } else pending.deny();
+            }
+            return;
+        }
         if (midi != null) midi.permissionResult(requestCode);
     }
 
