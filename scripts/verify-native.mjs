@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const run = spawnSync(process.execPath, ['--test', 'desktop/policy.test.cjs'], { cwd: root, stdio: 'inherit' });
+assert.equal(run.status, 0, 'Desktop origin and file-serving security checks failed');
+const main = await readFile(path.join(root, 'desktop/main.cjs'), 'utf8');
+assert.match(main, /contextIsolation: true/);
+assert.match(main, /nodeIntegration: false/);
+assert.match(main, /sandbox: true/);
+assert.match(main, /autoplayPolicy: 'document-user-activation-required'/);
+assert.doesNotMatch(main, /appendSwitch\(['"](?:no-sandbox|disable-web-security|autoplay-policy)/);
+const builder = await readFile(path.join(root, 'desktop/electron-builder.yml'), 'utf8');
+for (const target of ['nsis', 'portable', 'dmg', 'zip', 'AppImage', 'deb']) assert.match(builder, new RegExp(`target: ${target}`));
+const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+assert.equal(manifest.main, 'desktop/main.cjs', 'Set package.json main to desktop/main.cjs');
+assert.equal(manifest.devDependencies.electron, '44.7.2', 'Pin Electron runtime');
+assert.equal(manifest.devDependencies['electron-builder'], '26.15.3', 'Pin desktop packager');
+console.log('Desktop security policy and packaging configuration verified. Hardware MIDI tests remain separate.');

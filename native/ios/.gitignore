@@ -1,0 +1,5 @@
+SoundLABStudio.xcodeproj/
+Info.plist
+build/
+Web/*
+!Web/.gitkeep

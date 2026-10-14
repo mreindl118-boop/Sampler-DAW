@@ -1,0 +1,50 @@
+appId: com.soundlab.studio
+productName: SoundLAB Studio
+copyright: Copyright © SoundLAB contributors
+asar: true
+directories:
+  output: release/desktop
+  buildResources: desktop/icons
+files:
+  - dist/**
+  - desktop/**
+  - package.json
+  - '!desktop/*.test.cjs'
+extraMetadata:
+  main: desktop/main.cjs
+  description: SoundLAB Studio — synthesizer, sampler and MIDI workstation
+artifactName: SoundLAB-Studio-${version}-${os}-${arch}.${ext}
+publish: null
+mac:
+  category: public.app-category.music
+  icon: desktop/icons/icon.png
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  extendInfo:
+    NSMicrophoneUsageDescription: SoundLAB Studio records audio from your microphone or audio interface when you choose Record.
+win:
+  icon: desktop/icons/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: SoundLAB-Studio-${version}-windows-${arch}-setup.${ext}
+portable:
+  artifactName: SoundLAB-Studio-${version}-windows-${arch}-portable.${ext}
+linux:
+  icon: desktop/icons/icon.png
+  category: AudioVideo
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  maintainer: SoundLAB contributors <soundlab@users.noreply.github.com>

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { AudioClip, FxType, FxUnit, Track } from '../state/types'
 import { FX_TYPES, makeFx } from '../state/presets'
 import { beginGesture, findClip, mapClip, mapTrack, setProject, setUI, useStore } from '../state/store'
 import { engine } from '../audio/engine'
 import { audioIO, HELIX_STADIUM } from '../audio/audioIO'
-import { midiOutputs } from '../midi/midi'
+import { midiOutputs, subscribeMidiStatus, getMidiStatus } from '../midi/midi'
 import { Ic } from './icons'
 
 function useMeter(trackId: string | null): number {
@@ -114,6 +114,7 @@ function ClipInspector({ trackId, clipId }: { trackId: string; clipId: string })
 }
 
 function Strip({ track, selected, pairCount, onEditFx }: { track: Track; selected: boolean; pairCount: number; onEditFx: (fxId: string) => void }) {
+  useSyncExternalStore(subscribeMidiStatus, getMidiStatus, getMidiStatus)
   const isAudio = track.kind === 'audio'
   const isMidi = !isAudio
   const outs = isMidi ? midiOutputs() : []

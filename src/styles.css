@@ -26,6 +26,45 @@
   --sans: -apple-system, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Roboto, sans-serif;
 }
 
+/* A single keyboard connection surface stays visible across all DAW pages. */
+.keyboard-connection { flex-shrink: 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+.keyboard-connection > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 9px 16px; min-height: 44px; list-style: none; }
+.keyboard-connection > summary::-webkit-details-marker { display: none; }
+.keyboard-connection summary strong { font-size: 10px; letter-spacing: .13em; color: var(--accent); }
+.keyboard-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--accent); }
+.keyboard-ready .keyboard-dot { background: var(--green); box-shadow: 0 0 7px #6fd39455; }
+.keyboard-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.keyboard-signal { color: var(--text-dim); font-size: 11px; }
+.keyboard-expand { margin-left: auto; color: var(--accent); }
+.keyboard-body { padding: 4px 16px 16px; max-height: 48vh; overflow: auto; }
+.keyboard-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 10px; }
+.keyboard-actions button { min-height: 44px; }
+.keyboard-selects { display: flex; gap: 16px; flex-wrap: wrap; }
+.keyboard-selects label { display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
+.keyboard-selects select { min-height: 40px; max-width: min(330px, 60vw); }
+.keyboard-readout { padding: 10px 0; font-family: var(--mono); color: var(--green); font-size: 11px; }
+.keyboard-help { max-width: 920px; font-size: 12px; line-height: 1.6; color: var(--text-dim); }
+.keyboard-help p { margin: 8px 0; }
+.keyboard-help a { color: var(--accent-hi); }
+.keyboard-help details { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
+.keyboard-help summary { cursor: pointer; color: var(--text); min-height: 32px; }
+.keyboard-help ol { margin: 8px 0 8px 22px; }
+.keyboard-help li { margin: 6px 0; }
+.keyboard-help code { overflow-wrap: anywhere; }
+.keyboard-feedback { color: var(--accent-hi); margin: 8px 0; }
+.keyboard-light-permission { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.modal .keyboard-connection { margin: 0 0 16px; border: 1px solid var(--border); border-radius: 6px; }
+.modal .keyboard-connection > summary { padding: 8px 10px; }
+.modal .keyboard-body { padding: 4px 10px 12px; max-height: none; }
+@media (max-width: 640px) {
+  .keyboard-connection > summary { padding: 8px 10px; gap: 7px; }
+  .keyboard-signal { display: none; }
+  .keyboard-body { padding: 4px 10px 12px; max-height: 45vh; }
+  .keyboard-selects { flex-direction: column; gap: 8px; }
+  .keyboard-selects label { justify-content: space-between; }
+  .keyboard-selects select { flex: 1; max-width: 60vw; }
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 html, body, #root { height: 100%; overflow: hidden; }

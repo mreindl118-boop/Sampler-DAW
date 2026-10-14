@@ -50,6 +50,7 @@ class Engine {
   private limiter: DynamicsCompressorNode | null = null
   analyser: AnalyserNode | null = null
   private channels = new Map<string, Channel>()
+  private liveVoices = new Map<string, { channel: Channel; pitch: number; voiceChannel: number; outId?: string; outChannel: number }>()
   private activeSources: AudioBufferSourceNode[] = []
   private recorder: InputRecorder | null = null
   private pendingRecNotes = new Map<string, PendingRecNote>()
@@ -87,7 +88,7 @@ class Engine {
       this.attach()
       this.sync(getState().project)
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume()
+    if (this.ctx.state === 'suspended') void this.ctx.resume().catch(() => { /* resume from a user tap */ })
     return this.ctx
   }
 
@@ -398,6 +399,7 @@ class Engine {
   }
 
   private allNotesOff(): void {
+    this.releaseLiveNotes()
     for (const ch of this.channels.values()) ch.instrument?.allNotesOff()
   }
 
@@ -601,8 +603,12 @@ class Engine {
   liveNoteOn(pitch: number, vel: number, channel = 0): void {
     this.ensure()
     const ch = this.liveTarget()
+    if (ch && this.liveVoices.has(`${ch.trackId}:${channel}:${pitch}`)) this.liveNoteOff(pitch, channel)
     ch?.instrument?.noteOn(pitch, vel, this.ctx!.currentTime, channel)
     const track = ch && getState().project.tracks.find((t) => t.id === ch.trackId)
+    if (ch) this.liveVoices.set(`${ch.trackId}:${channel}:${pitch}`, {
+      channel: ch, pitch, voiceChannel: channel, outId: track?.midiOutId, outChannel: track?.midiOutChannel ?? 0,
+    })
     if (track?.midiOutId) sendNoteOn(track.midiOutId, track.midiOutChannel, pitch, vel)
     const { ui } = getState()
     if (ui.recording && this.transport?.playing && ch) {
@@ -613,19 +619,24 @@ class Engine {
 
   liveNoteOff(pitch: number, channel = 0): void {
     if (!this.ctx) return
-    const ch = this.liveTarget()
-    ch?.instrument?.noteOff(pitch, this.ctx.currentTime, channel)
-    const track = ch && getState().project.tracks.find((t) => t.id === ch.trackId)
-    if (track?.midiOutId) sendNoteOff(track.midiOutId, track.midiOutChannel, pitch)
-    if (ch && this.transport) {
-      const key = `${channel}:${pitch}:${ch.trackId}`
+    for (const [voiceKey, voice] of this.liveVoices) {
+      if (voice.pitch !== pitch || voice.voiceChannel !== channel) continue
+      voice.channel.instrument?.noteOff(pitch, this.ctx.currentTime, channel)
+      if (voice.outId) sendNoteOff(voice.outId, voice.outChannel, pitch)
+      this.liveVoices.delete(voiceKey)
+      const key = `${channel}:${pitch}:${voice.channel.trackId}`
       const pending = this.pendingRecNotes.get(key)
-      const clipId = this.recordClipByTrack.get(ch.trackId)
-      if (pending && clipId) {
+      const clipId = this.recordClipByTrack.get(voice.channel.trackId)
+      if (pending && clipId && this.transport) {
         this.pendingRecNotes.delete(key)
-        this.commitRecordedNote(ch.trackId, clipId, pitch, pending, this.transport.currentBeat())
+        this.commitRecordedNote(voice.channel.trackId, clipId, pitch, pending, this.transport.currentBeat())
       }
     }
+  }
+
+  /** Release held live notes on their original tracks, even after selection changes. */
+  releaseLiveNotes(): void {
+    for (const voice of [...this.liveVoices.values()]) this.liveNoteOff(voice.pitch, voice.voiceChannel)
   }
 
   livePitchBend(semitones: number, channel = 0): void {

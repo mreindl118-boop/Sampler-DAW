@@ -1,7 +1,12 @@
-# OpenStudio DAW 🎛
+# soundLAB Studio 🎛
 
 An open, cross-platform **synthesizer + sampler + DAW** in the spirit of FL Studio and Logic —
-built web-first so one codebase runs on **iPad, Android, the web, and PC**.
+built from Sampler-DAW with a shared keyboard setup for **iPad, Android, Windows, macOS, Linux and the web**.
+
+The KEYBOARD strip connects and remembers your MIDI controller, restores it after unplugging,
+and shows received notes separately from sound activation. Desktop Chromium/Web MIDI and
+native mobile MIDI bridges share the same connection manager. Safari hardware MIDI requires
+the native iPad build; it is not enabled by installing the PWA.
 
 ```bash
 npm install
@@ -53,9 +58,10 @@ See [docs/HARDWARE.md](docs/HARDWARE.md) for:
 
 ## Shipping to each platform
 
-See [docs/PLATFORMS.md](docs/PLATFORMS.md). Short version: the web build is already installable as a PWA on
-iPad/Android/desktop; wrap with **Capacitor** for App Store / Play Store builds and with **Electron/Tauri** for
-desktop, all from this same codebase.
+See [docs/PLATFORMS.md](docs/PLATFORMS.md). The web build is installable as a PWA, the repository includes
+native CoreMIDI/MidiManager mobile shells and Electron desktop packaging, and CI builds developer artifacts.
+Apple device installation and store distribution require signing. Build instructions and physical hardware
+acceptance are in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Roadmap
 
