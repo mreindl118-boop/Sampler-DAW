@@ -1,5 +1,7 @@
 name: SoundLABStudio
 options:
+  xcodeVersion: '15.4'
+  projectFormat: xcode15_3
   deploymentTarget:
     iOS: '16.0'
 settings:

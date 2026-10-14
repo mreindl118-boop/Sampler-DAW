@@ -134,7 +134,12 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         if (fileSelection != null) { fileSelection.onReceiveValue(null); fileSelection = null; }
         if (midi != null) midi.stop();
-        if (webView != null) { WebViewCompat.removeWebMessageListener(webView, "SoundLabMidi"); webView.destroy(); }
+        if (webView != null) {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                WebViewCompat.removeWebMessageListener(webView, "SoundLabMidi");
+            }
+            webView.destroy();
+        }
         super.onDestroy();
     }
 
