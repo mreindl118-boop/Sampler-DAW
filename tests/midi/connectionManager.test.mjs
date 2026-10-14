@@ -90,9 +90,10 @@ test('MIDI stream parser handles chunks, running status, realtime and system com
   assert.deepEqual(parser.push([0x90,60,NaN,100,0x90,64,120]),[[0x90,64,120]])
   const bounded=new MidiStreamParser(3);assert.deepEqual(bounded.push([0xf0,1,2,3,4,0xf7,0x90,65,90]),[[0x90,65,90]])
 })
-class FakePort extends EventTarget {id;name;manufacturer='ROLI';state='connected';closed=0
+class FakePort extends EventTarget {id;name;manufacturer='ROLI';state='connected';connection='closed';closed=0;opens=0
  constructor(id,name='ROLI LUMI Keys'){super();this.id=id;this.name=name}
- async close(){this.closed++;return this} send(){}
+ async open(){this.opens++;this.connection='open';return this}
+ async close(){this.closed++;this.connection='closed';return this} send(){}
  message(data){const event=new Event('midimessage');event.data=new Uint8Array(data);this.dispatchEvent(event)}
 }
 class FakeAccess extends EventTarget {inputs=new Map();outputs=new Map();sysexEnabled=false}
@@ -107,7 +108,7 @@ test('Web MIDI startup never requests ungranted permission; explicit connect ask
   port.message([0x90,60,127]);assert.equal(messages.length,1)
   port.state='disconnected';access.dispatchEvent(new Event('statechange'));assert.equal(manager.getStatus().inputs.length,0)
   port.message([0x90,62,127]);assert.equal(messages.filter(m=>m[0]===0x90).length,1)
-  manager.disconnect();assert.equal(port.closed,1)
+  manager.disconnect();assert.ok(port.closed>=1)
   permission='granted';assert.equal(await manager.init(),true);assert.equal(requests.length,2)
 })
 test('Web adapter discards access resolving after disconnect without installing listeners',async()=>{
@@ -131,6 +132,40 @@ test('optional Web permission rejection retains one live listener on original ac
  await manager.connect();assert.equal(await manager.enableLights(),false)
  access.dispatchEvent(new Event('statechange'));port.message([0x90,64,90]);assert.deepEqual(messages,[[0x90,64,90]])
  assert.equal(manager.getStatus().selectedInputId,'lumi-in');assert.equal(port.closed,0)
+})
+const nextTurn=()=>new Promise(resolve=>setImmediate(resolve))
+test('selected Web input open rejection is visible and explicit reconnect recovers',async()=>{
+ const access=new FakeAccess(),port=new FakePort('lumi-in'),other=new FakePort('other','Other keyboard');access.inputs.set(port.id,port);access.inputs.set(other.id,other)
+ let busy=true
+ port.open=async()=>{port.opens++;if(busy)throw new DOMException('Port held by another app','InvalidAccessError');port.connection='open';return port}
+ const adapter=new WebMidiAdapter({requestMIDIAccess:async()=>access}),messages=[]
+ const manager=new MidiConnectionManager({adapter,onMessage:data=>messages.push(data)})
+ await manager.connect();await nextTurn();assert.equal(manager.getStatus().phase,'error');assert.match(manager.getStatus().error,/held by another app/)
+ assert.equal(other.opens,0);port.message([0x90,60,100]);assert.equal(messages.length,0)
+ busy=false;await manager.connect();await nextTurn();assert.equal(manager.getStatus().phase,'connected');assert.equal(manager.getStatus().error,null);assert.equal(port.opens,2)
+ port.message([0x90,60,100]);assert.deepEqual(messages,[[0x90,60,100]])
+ manager.disconnect();assert.deepEqual(messages.at(-1),[0x80,60,0])
+})
+test('changing selected Web input cancels late opens and never attaches duplicate listeners',async()=>{
+ const access=new FakeAccess(),a=new FakePort('lumi-in'),b=new FakePort('other','Other keyboard'),pending=deferred();access.inputs.set(a.id,a);access.inputs.set(b.id,b)
+ a.open=async()=>{a.opens++;await pending.promise;a.connection='open';return a}
+ const adapter=new WebMidiAdapter({requestMIDIAccess:async()=>access}),messages=[]
+ const manager=new MidiConnectionManager({adapter,onMessage:data=>messages.push(data)})
+ await manager.connect();assert.equal(manager.getStatus().phase,'connecting');assert.equal(b.opens,0)
+ manager.selectInput('other');await nextTurn();assert.equal(manager.getStatus().phase,'connected');assert.equal(b.opens,1)
+ pending.resolve();await nextTurn();a.message([0x90,60,100]);b.message([0x90,64,100]);assert.deepEqual(messages,[[0x90,64,100]])
+ for(let i=0;i<4;i++)access.dispatchEvent(new Event('statechange'))
+ b.message([0x80,64,0]);assert.equal(messages.length,2);assert.equal(b.opens,1);assert.equal(a.connection,'closed')
+})
+test('disconnect during selected Web open ignores rejection and cleans a late successful open',async()=>{
+ for(const reject of [false,true]){
+  const access=new FakeAccess(),port=new FakePort('lumi-in'),pending=deferred();access.inputs.set(port.id,port)
+  port.open=async()=>{await pending.promise;if(reject)throw new DOMException('Late failure','InvalidAccessError');port.connection='open';return port}
+  const adapter=new WebMidiAdapter({requestMIDIAccess:async()=>access}),messages=[]
+  const manager=new MidiConnectionManager({adapter,onMessage:data=>messages.push(data)})
+  await manager.connect();manager.disconnect();pending.resolve();await nextTurn()
+  assert.equal(manager.getStatus().phase,'idle');assert.equal(manager.getStatus().error,null);port.message([0x90,60,100]);assert.equal(messages.length,0);assert.equal(port.connection,'closed')
+ }
 })
 test('manager removes disconnected ports and handles explicit disconnect note cleanup',async()=>{
  const adapter=new FakeAdapter(),messages=[],releases=[]

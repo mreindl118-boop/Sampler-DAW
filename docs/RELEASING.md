@@ -46,7 +46,7 @@ xcodebuild -project native/ios/SoundLABStudio.xcodeproj -scheme SoundLABStudio \
   archive CODE_SIGNING_ALLOWED=NO
 ```
 
-The generated archive compiles the native app but is unsigned. An unsigned IPA cannot be installed directly on an ordinary iPad. Open the generated project in Xcode, select an authorized signing team, and run it on the device, or export a signed archive for the selected distribution route.
+The generated archive compiles the native app but is unsigned. An unsigned IPA cannot be installed directly on an ordinary iPad. Open the generated project in Xcode, select an authorized signing team, and run it on the device, or export a signed archive for the selected distribution route. A Windows-only personal installation can instead sign the IPA through AltStore Classic with the owner's Apple ID; see [Standalone iPad installation from Windows](IPAD_WINDOWS.md). That route requires signing renewal and does not use the App Store.
 
 ## CI and publishing
 

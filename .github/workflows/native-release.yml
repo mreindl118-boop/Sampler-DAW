@@ -192,7 +192,7 @@ jobs:
             echo 'Existing release tag points to a different commit. Bump package.json version; tags are never moved.' >&2
             exit 1
           fi
-          printf '%s\n' 'SoundLAB Studio developer builds.' '' 'Desktop installers are unsigned. Android APK uses a developer debug key. The iOS archive/IPA is unsigned and requires Apple signing before installation. These files are not App Store or Google Play releases. Hardware MIDI acceptance is documented in docs/RELEASING.md.' > release-notes.txt
+          printf '%s\n' 'SoundLAB Studio developer builds.' '' 'Desktop installers are unsigned. Android APK uses a developer debug key. The iOS archive/IPA is unsigned and requires Apple signing before installation. Standalone iPad installation from Windows can use AltStore Classic with your Apple ID; see docs/IPAD_WINDOWS.md. These files are not App Store or Google Play releases. Hardware MIDI acceptance is documented in docs/RELEASING.md.' > release-notes.txt
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --prerelease --title "SoundLAB Studio $RELEASE_TAG — developer builds" --notes-file release-notes.txt
           fi

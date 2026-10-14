@@ -45,6 +45,8 @@ export class MidiConnectionManager {
   private enabled = false
   private disposed = false
   private granted = false
+  private requestedInputId: string | null | undefined
+  private portRevision = 0
   constructor(options: ManagerOptions) {
     this.options = options; this.adapter = options.adapter
     try { this.preferences = options.loadPreferences?.() ?? {} } catch { this.preferences = {} }
@@ -69,7 +71,11 @@ export class MidiConnectionManager {
       const task = (async () => {
         if (this.passivePromise) await this.passivePromise
         if (this.disposed || generation !== this.generation) return false
-        if (this.granted && this.adapter.kind !== 'native') { this.enabled = true; this.refresh(); return true }
+        if (this.granted && this.adapter.kind !== 'native') {
+          this.enabled = true
+          if (this.state.phase === 'error') { this.requestedInputId = undefined; this.publish({ error: null }) }
+          this.refresh(); return true
+        }
         return this.start(false)
       })()
       this.connectPromise = task
@@ -81,11 +87,15 @@ export class MidiConnectionManager {
     if (!this.adapter.supported) { this.publish({ phase: this.external.size ? 'connected' : 'unsupported' }); return false }
     const generation = this.generation
     this.enabled = true
+    this.requestedInputId = undefined
     if (!restoreOnly) this.publish({ phase: 'connecting', error: null })
     try {
+      const portRevision = this.portRevision
       const result = await this.adapter.connect({ sysex: false, restoreOnly })
       if (this.disposed || generation !== this.generation) return false
-      this.granted = result.granted; this.ports = { inputs: result.inputs, outputs: result.outputs }
+      this.granted = result.granted
+      // A port-open event can arrive before the async connect result. Keep it.
+      if (portRevision === this.portRevision) this.ports = { inputs: result.inputs, outputs: result.outputs }
       this.publish({ sysexEnabled: result.sysexEnabled })
       this.refresh()
       return result.granted
@@ -104,9 +114,11 @@ export class MidiConnectionManager {
       const task = (async () => {
         if (!await this.connect() || generation !== this.generation) return false
         try {
+          const portRevision = this.portRevision
           const result = await this.adapter.connect({ sysex: true, restoreOnly: false })
           if (this.disposed || generation !== this.generation) return false
-          this.ports = { inputs: result.inputs, outputs: result.outputs }
+          if (portRevision === this.portRevision) this.ports = { inputs: result.inputs, outputs: result.outputs }
+          this.requestedInputId = undefined
           this.publish({ sysexEnabled: result.sysexEnabled, lightsError: result.sysexEnabled ? null : 'This connection does not support MIDI lights.' })
           this.refresh(); return result.sysexEnabled
         } catch (error) {
@@ -122,9 +134,13 @@ export class MidiConnectionManager {
     return this.lightsPromise
   }
   private handleEvent(event: MidiAdapterEvent): void {
-    if (event.type === 'ports') { this.ports = event; this.refresh() }
+    if (event.type === 'ports') { this.portRevision++; this.ports = event; this.refresh() }
     else if (event.type === 'message') this.receive(event.inputId, event.data, event.timestamp)
-    else this.publish({ error: event.message, phase: this.state.selectedInputId ? 'connected' : 'error' })
+    else {
+      if (event.inputId && event.inputId !== this.state.selectedInputId) return
+      if (event.inputId && this.state.selectedInputId) this.release(this.state.selectedInputId)
+      this.publish({ error: event.message, phase: event.inputId ? 'error' : this.state.selectedInputId ? 'connected' : 'error' })
+    }
   }
   private refresh(): void {
     const inputs: MidiPortInfo[] = this.ports.inputs.filter(p => !p.state || p.state === 'connected').map(p => ({ ...p, state: 'connected' as const }))
@@ -140,16 +156,29 @@ export class MidiConnectionManager {
     if (this.state.selectedInputId && this.state.selectedInputId !== input?.id) this.release(this.state.selectedInputId)
     for (const id of this.parsers.keys()) if (!inputs.some(p => p.id === id)) this.parsers.delete(id)
     const inputChanged = this.state.selectedInputId !== (input?.id ?? null)
+    const inputReady = input && (input.connection === undefined || input.connection === 'open')
     this.publish({ inputs, outputs, selectedInputId: input?.id ?? null, selectedOutputId: output?.id ?? null,
       ...(inputChanged ? { lastNote: null, lastMessageAt: null, messageCount: 0 } : {}),
       transport: input ? this.external.has(input.id) ? 'ble' : this.adapter.kind : this.granted ? this.adapter.kind : null,
-      phase: input ? 'connected' : this.state.error ? 'error' : this.granted ? 'waiting' : this.adapter.supported ? 'idle' : 'unsupported',
-      error: input ? null : this.state.error })
+      phase: inputReady ? 'connected' : this.state.error ? 'error' : input ? 'connecting' : this.granted ? 'waiting' : this.adapter.supported ? 'idle' : 'unsupported',
+      error: inputReady ? null : this.state.error })
+    const inputId = input?.id ?? null
+    const adapterInputId = inputId && this.external.has(inputId) ? null : inputId
+    if (this.adapter.selectInput && this.requestedInputId !== adapterInputId) {
+      this.requestedInputId = adapterInputId
+      const generation = this.generation
+      void this.adapter.selectInput(adapterInputId).catch(error => {
+        if (this.disposed || !this.enabled || generation !== this.generation || this.state.selectedInputId !== inputId) return
+        this.publish({ phase: 'error', error: error instanceof Error ? error.message : String(error) })
+      })
+    }
   }
   selectInput(id: string): void {
     const port = this.state.inputs.find(p => p.id === id)
     if (id && !port) return
     this.preferences = { ...this.preferences, input: port ? { id: port.id, name: port.name, manufacturer: port.manufacturer } : null }
+    this.requestedInputId = undefined
+    this.publish({ error: null })
     this.save(); this.refresh()
   }
   selectOutput(id: string): void {
@@ -160,7 +189,7 @@ export class MidiConnectionManager {
   }
   private save(): void { try { this.options.savePreferences?.(this.preferences) } catch { /* storage unavailable */ } }
   receive(inputId: string, bytes: unknown, timestamp?: number): void {
-    if (this.disposed || (!this.enabled && !this.external.has(inputId)) || inputId !== this.state.selectedInputId) return
+    if (this.disposed || (!this.enabled && !this.external.has(inputId)) || inputId !== this.state.selectedInputId || this.state.phase !== 'connected') return
     let parser = this.parsers.get(inputId)
     if (!parser) { parser = new MidiStreamParser(); this.parsers.set(inputId, parser) }
     for (const data of parser.push(bytes)) {
@@ -203,7 +232,7 @@ export class MidiConnectionManager {
     for (const cleanup of this.disconnectCleanups) cleanup()
     this.disconnectCleanups.clear()
     for (const item of this.external.values()) item.close?.()
-    this.external.clear(); this.ports = emptyPorts(); this.passivePromise = null; this.connectPromise = null; this.lightsPromise = null
+    this.external.clear(); this.ports = emptyPorts(); this.passivePromise = null; this.connectPromise = null; this.lightsPromise = null; this.requestedInputId = undefined
     this.publish({ ...emptyPorts(), phase: this.adapter.supported ? 'idle' : 'unsupported', transport: null, selectedInputId: null, selectedOutputId: null, sysexEnabled: false, error: null, lightsError: null, lastNote: null, lastMessageAt: null, messageCount: 0 })
   }
   dispose(): void { if (this.disposed) return; this.disconnect(); this.disposed = true; this.unsubscribeAdapter(); this.listeners.clear() }
