@@ -2,6 +2,12 @@ import { engine } from '../audio/engine'
 import { getState, setUI } from '../state/store'
 import { getSettings, updateSettings } from '../state/settings'
 import { toast } from '../state/toasts'
+import { MidiConnectionManager } from './connectionManager'
+import { NativeMidiAdapter } from './nativeMidiAdapter'
+import { WebMidiAdapter } from './webMidiAdapter'
+import { validMidiMessage } from './streamParser'
+import type { MidiPortInfo, MidiPreferences } from './types'
+export type { MidiPortInfo, MidiStatus } from './types'
 
 /**
  * Web MIDI input & output with MPE support (ROLI Seaboard / BLOCKS, LinnStrument…)
@@ -17,12 +23,29 @@ import { toast } from '../state/toasts'
  * level; Chrome also exposes BLE-MIDI directly — see bleMidi.ts.
  */
 
-export interface MidiPortInfo {
-  id: string
-  name: string
-}
-
-let access: MIDIAccess | null = null
+const native = new NativeMidiAdapter()
+// A note retains the expression mode used when it began, even if UI mode changes.
+const midiVoiceChannels = new Map<string, number>()
+const midiManager = new MidiConnectionManager({
+  adapter: native.supported ? native : new WebMidiAdapter(),
+  onMessage: data => handleMidiMessage(data),
+  onRelease: () => { engine.releaseLiveNotes(); midiVoiceChannels.clear() },
+  now: () => performance.now(),
+  loadPreferences: () => {
+    try {
+      const value = JSON.parse(localStorage.getItem('soundlab.midi.selection') ?? '{}') as MidiPreferences
+      const valid = (selection: MidiPreferences['input']): boolean => selection === undefined || selection === null || (typeof selection.id === 'string' && typeof selection.name === 'string')
+      return value && valid(value.input) && valid(value.output) ? value : {}
+    } catch { return {} }
+  },
+  savePreferences: preferences => localStorage.setItem('soundlab.midi.selection', JSON.stringify(preferences)),
+})
+let displayedInputNames = ''
+midiManager.subscribe(() => {
+  const names = midiManager.getStatus().inputs.map(input => input.name)
+  const signature = JSON.stringify(names)
+  if (signature !== displayedInputNames) { displayedInputNames = signature; setUI({ midiInputs: names }) }
+})
 
 // ---------- MIDI learn ----------
 
@@ -73,6 +96,7 @@ function runMapped(key: string): boolean {
 // ---------- inbound ----------
 
 export function handleMidiMessage(data: Uint8Array | number[]): void {
+  if (!validMidiMessage(data)) return
   const status = data[0]
   if (status === undefined) return
   const type = status & 0xf0
@@ -83,12 +107,22 @@ export function handleMidiMessage(data: Uint8Array | number[]): void {
   switch (type) {
     case 0x90: {
       const [, pitch, vel] = data
-      if (vel > 0) engine.liveNoteOn(pitch, vel / 127, voiceChannel)
-      else engine.liveNoteOff(pitch, voiceChannel)
+      const key = `${channel}:${pitch}`
+      if (vel > 0) {
+        const priorChannel = midiVoiceChannels.get(key)
+        if (priorChannel !== undefined) engine.liveNoteOff(pitch, priorChannel)
+        midiVoiceChannels.set(key, voiceChannel)
+        engine.liveNoteOn(pitch, vel / 127, voiceChannel)
+      } else {
+        engine.liveNoteOff(pitch, midiVoiceChannels.get(key) ?? voiceChannel)
+        midiVoiceChannels.delete(key)
+      }
       break
     }
     case 0x80: {
-      engine.liveNoteOff(data[1], voiceChannel)
+      const key = `${channel}:${data[1]}`
+      engine.liveNoteOff(data[1], midiVoiceChannels.get(key) ?? voiceChannel)
+      midiVoiceChannels.delete(key)
       break
     }
     case 0xe0: {
@@ -134,28 +168,16 @@ function getBendRange(): number {
 // ---------- outbound ----------
 
 export function midiOutputs(): MidiPortInfo[] {
-  const out: MidiPortInfo[] = []
-  access?.outputs.forEach((o) => out.push({ id: o.id, name: `${o.name ?? 'MIDI out'}${o.manufacturer ? ` (${o.manufacturer})` : ''}` }))
-  return out
+  return midiManager.getStatus().outputs
 }
 
 export function midiInputsInfo(): MidiPortInfo[] {
-  const out: MidiPortInfo[] = []
-  access?.inputs.forEach((i) => out.push({ id: i.id, name: i.name ?? 'MIDI in' }))
-  return out
+  return midiManager.getStatus().inputs
 }
 
 /** Send raw bytes to an output, optionally scheduled at a DOMHighRes timestamp. */
 export function sendMidi(outId: string, data: number[], atPerfTime?: number): void {
-  if (!access) return
-  const port = access.outputs.get(outId)
-  if (!port) return
-  try {
-    if (atPerfTime !== undefined) port.send(data, atPerfTime)
-    else port.send(data)
-  } catch {
-    /* invalid data / closed port */
-  }
+  midiManager.send(outId, data, atPerfTime)
 }
 
 export function sendProgramChange(outId: string, channel: number, program: number, atPerfTime?: number): void {
@@ -185,30 +207,21 @@ export function sendRealtime(outId: string, byte: number, atPerfTime?: number): 
 
 // ---------- setup ----------
 
-function refreshInputs(): void {
-  if (!access) return
-  const names: string[] = []
-  access.inputs.forEach((input) => {
-    names.push(`${input.name ?? 'MIDI device'}${input.manufacturer ? ` (${input.manufacturer})` : ''}`)
-    input.onmidimessage = (e: MIDIMessageEvent) => {
-      if (e.data) handleMidiMessage(e.data)
-    }
-  })
-  setUI({ midiInputs: names })
-}
+export const initMidi = (): Promise<boolean> => midiManager.init()
+export const connectMidi = (): Promise<boolean> => midiManager.connect()
+export const enableMidiLights = (): Promise<boolean> => midiManager.enableLights()
+export const connectNativeBluetooth = (): Promise<boolean> => midiManager.bluetooth()
+export const disconnectMidi = (): void => midiManager.disconnect()
+export const selectMidiInput = (id: string): void => midiManager.selectInput(id)
+export const selectMidiOutput = (id: string): void => midiManager.selectOutput(id)
+export const getMidiStatus = midiManager.getStatus
+export const subscribeMidiStatus = midiManager.subscribe
+export const midiSupported = (): boolean => midiManager.getStatus().supported
 
-export async function initMidi(): Promise<boolean> {
-  if (!('requestMIDIAccess' in navigator)) return false
-  try {
-    access = await navigator.requestMIDIAccess({ sysex: false })
-    refreshInputs()
-    access.onstatechange = () => refreshInputs()
-    return true
-  } catch {
-    return false
-  }
+// Direct BLE uses the same selection, parsing, statistics and voice cleanup.
+export const registerBleInput = (port: MidiPortInfo, options: { send?: (data: number[], at?: number) => void; close?: () => void }): void => {
+  midiManager.attachExternal(port, options); midiManager.selectInput(port.id)
 }
-
-export function midiSupported(): boolean {
-  return 'requestMIDIAccess' in navigator
-}
+export const unregisterBleInput = (id: string): void => midiManager.detachExternal(id)
+export const receiveBleMidi = (id: string, data: number[] | Uint8Array): void => midiManager.receive(id, data)
+export const registerBleDisconnectCleanup = (cleanup: () => void): (() => void) => midiManager.addDisconnectCleanup(cleanup)

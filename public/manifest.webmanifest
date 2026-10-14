@@ -1,7 +1,7 @@
 {
-  "name": "OpenStudio DAW",
-  "short_name": "OpenStudio",
-  "description": "Open, cross-platform synthesizer, sampler and DAW",
+  "name": "soundLAB Studio",
+  "short_name": "soundLAB",
+  "description": "Synthesizer, sampler and DAW with a shared keyboard connection setup",
   "start_url": "./",
   "display": "standalone",
   "orientation": "landscape",

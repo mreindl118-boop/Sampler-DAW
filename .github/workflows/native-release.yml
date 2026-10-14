@@ -1,0 +1,202 @@
+name: Native developer builds
+
+on:
+  push:
+    branches: [main, claude/music-daw-app-design-oqkq9t]
+    tags: ['soundlab-v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a developer prerelease (select a soundlab-v tag)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate explicit publish request
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/soundlab-v*) ;;
+            *) echo 'Publishing requires selecting an existing soundlab-v tag.' >&2; exit 1 ;;
+          esac
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:midi
+      - run: npm run native:verify
+      - run: npm run native:sync && node scripts/package-native.mjs --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundlab-web-bundle
+          path: dist/
+          if-no-files-found: error
+
+  desktop:
+    needs: web-checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            target: win
+          - os: macos-14
+            target: mac
+          - os: ubuntu-24.04
+            target: linux
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: soundlab-web-bundle
+          path: dist/
+      - name: Exercise real desktop permissions and fake recording
+        if: runner.os == 'Windows'
+        run: node scripts/electron-smoke.mjs
+      - name: Package bundled desktop application (no publishing)
+        run: npx --no-install electron-builder --config desktop/electron-builder.yml --${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundlab-desktop-${{ matrix.target }}-unsigned
+          path: |
+            release/desktop/*.exe
+            release/desktop/*.dmg
+            release/desktop/*.zip
+            release/desktop/*.AppImage
+            release/desktop/*.deb
+          if-no-files-found: error
+
+  android:
+    needs: web-checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: actions/download-artifact@v4
+        with:
+          name: soundlab-web-bundle
+          path: dist/
+      - run: node scripts/package-native.mjs
+      - name: Build and lint developer APK
+        run: gradle -p native/android --no-daemon :app:assembleDebug :app:lintDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundlab-android-developer-debug
+          path: native/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  ios:
+    needs: web-checks
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: brew install xcodegen
+      - uses: actions/download-artifact@v4
+        with:
+          name: soundlab-web-bundle
+          path: dist/
+      - run: node scripts/package-native.mjs
+      - run: xcodegen generate --spec native/ios/project.yml
+      - name: Compile unsigned iPad/iPhone archive
+        run: >-
+          xcodebuild -project native/ios/SoundLABStudio.xcodeproj
+          -scheme SoundLABStudio -sdk iphoneos -configuration Release
+          -archivePath "$PWD/release/SoundLABStudio-unsigned.xcarchive"
+          archive CODE_SIGNING_ALLOWED=NO
+      - name: Package developer archive and unsigned IPA
+        run: |
+          mkdir -p release/ios/Payload
+          cp -R release/SoundLABStudio-unsigned.xcarchive/Products/Applications/*.app release/ios/Payload/
+          cd release/ios
+          zip -qr SoundLAB-Studio-ios-unsigned.ipa Payload
+          cd ..
+          ditto -c -k --keepParent SoundLABStudio-unsigned.xcarchive ios/SoundLAB-Studio-ios-unsigned.xcarchive.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundlab-ios-unsigned-developer
+          path: |
+            release/ios/*.ipa
+            release/ios/*.zip
+          if-no-files-found: error
+
+  developer-release:
+    needs: [desktop, android, ios]
+    if: >-
+      (github.event_name == 'push' &&
+        (github.ref == 'refs/heads/main' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) ||
+      (startsWith(github.ref, 'refs/tags/soundlab-v') &&
+        (github.event_name == 'push' || inputs.publish_release == true))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: soundlab-*
+          merge-multiple: true
+          path: release-assets
+      - name: Publish developer prerelease for the verified commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RELEASE_TAG="soundlab-v$(node -p 'const v=require("./package.json").version; if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(v)) throw new Error("Invalid release version"); v')"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$RELEASE_TAG" ]]; then
+            echo 'The release tag must match package.json version.' >&2
+            exit 1
+          fi
+          EXISTING_TAG_COMMIT="$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}" 2>/dev/null || true)"
+          if [[ -n "$EXISTING_TAG_COMMIT" && "$EXISTING_TAG_COMMIT" != "$GITHUB_SHA" ]]; then
+            echo 'Existing release tag points to a different commit. Bump package.json version; tags are never moved.' >&2
+            exit 1
+          fi
+          printf '%s\n' 'SoundLAB Studio developer builds.' '' 'Desktop installers are unsigned. Android APK uses a developer debug key. The iOS archive/IPA is unsigned and requires Apple signing before installation. These files are not App Store or Google Play releases. Hardware MIDI acceptance is documented in docs/RELEASING.md.' > release-notes.txt
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --prerelease --title "SoundLAB Studio $RELEASE_TAG — developer builds" --notes-file release-notes.txt
+          fi
+          # Re-check the remote tag after creation to catch a conflicting concurrent tag.
+          git fetch origin "refs/tags/$RELEASE_TAG"
+          if [[ "$(git rev-parse 'FETCH_HEAD^{commit}')" != "$GITHUB_SHA" ]]; then
+            echo 'Remote release tag does not match this verified build; refusing artifact upload.' >&2
+            exit 1
+          fi
+          find release-assets -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.apk' -o -name '*.ipa' \) -exec gh release upload "$RELEASE_TAG" --clobber {} +

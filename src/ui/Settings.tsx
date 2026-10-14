@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { engine } from '../audio/engine'
 import { audioIO, HELIX_STADIUM, type IOStatus } from '../audio/audioIO'
-import { initMidi, midiInputsInfo, midiOutputs, midiSupported, startMidiLearn, cancelMidiLearn } from '../midi/midi'
-import { bleSupported, connectBleMidi } from '../midi/bleMidi'
+import { initMidi, midiOutputs, startMidiLearn, cancelMidiLearn, getMidiStatus, subscribeMidiStatus } from '../midi/midi'
 import { setUI, useStore, getState } from '../state/store'
 import { MIDI_ACTIONS, getSettings, updateSettings, useSettings } from '../state/settings'
 import { toast } from '../state/toasts'
+import { KeyboardConnection } from './KeyboardConnection'
 
 export function SettingsModal() {
   const show = useStore((s) => s.ui.showSettings)
@@ -17,7 +17,7 @@ function SettingsInner() {
   const mpeEnabled = useStore((s) => s.ui.mpeEnabled)
   const settings = useSettings((s) => s)
   const [io, setIO] = useState<IOStatus>(audioIO.status())
-  const [bleStatus, setBleStatus] = useState('')
+  useSyncExternalStore(subscribeMidiStatus, getMidiStatus, getMidiStatus)
   const [tab, setTab] = useState<'audio' | 'midi' | 'reamp' | 'diag'>('audio')
   const [learning, setLearning] = useState<string | null>(null)
   const [diagReport, setDiagReport] = useState('')
@@ -25,7 +25,7 @@ function SettingsInner() {
 
   useEffect(() => {
     engine.ensure()
-    void audioIO.refreshDevices(true)
+    void audioIO.refreshDevices(false)
     void initMidi()
     const off = audioIO.onChange(() => setIO(audioIO.status()))
     setIO(audioIO.status())
@@ -182,37 +182,13 @@ function SettingsInner() {
 
         {tab === 'midi' && (
           <>
-            <div className="row">
-              <label>MIDI inputs</label>
-              <div style={{ flex: 1 }}>
-                {midiSupported() ? (
-                  midiInputsInfo().length > 0 ? (
-                    midiInputsInfo().map((n) => <div key={n.id} style={{ fontSize: 12 }}>• {n.name}</div>)
-                  ) : (
-                    <span className="hint">No MIDI inputs — connect a device (USB or Bluetooth).</span>
-                  )
-                ) : (
-                  <span className="hint">Web MIDI not supported in this browser (use Chrome/Edge or a native build).</span>
-                )}
-              </div>
-            </div>
+            <KeyboardConnection expanded />
             <div className="row">
               <label>MPE (ROLI etc.)</label>
               <button className={mpeEnabled ? 'active' : ''} onClick={() => setUI({ mpeEnabled: !mpeEnabled })}>
                 {mpeEnabled ? 'Enabled' : 'Disabled'}
               </button>
               <span className="hint">Per-note glide/slide/press for Seaboard-style controllers (bend ±48).</span>
-            </div>
-            <div className="row">
-              <label>Bluetooth MIDI</label>
-              {bleSupported() ? (
-                <button onClick={() => void connectBleMidi(setBleStatus).catch((e) => setBleStatus(String(e)))}>
-                  Connect BLE MIDI device…
-                </button>
-              ) : (
-                <span className="hint">Pair in OS settings; it then shows up as a MIDI input.</span>
-              )}
-              {bleStatus && <span className="hint">{bleStatus}</span>}
             </div>
             <h4 style={{ margin: '12px 0 6px' }}>Outbound — control the Stadium</h4>
             <div className="row">

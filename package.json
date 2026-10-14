@@ -1,15 +1,25 @@
 {
-  "name": "openstudio-daw",
+  "name": "soundlab-studio",
   "private": true,
-  "version": "0.1.0",
-  "description": "OpenStudio — an open, cross-platform synthesizer, sampler and DAW for web, iPad, Android and PC",
+  "version": "0.2.0",
+  "description": "SoundLAB Studio — synthesizer, sampler and DAW with shared MIDI keyboard setup",
+  "author": "SoundLAB contributors",
+  "license": "MIT",
+  "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "qa": "node scripts/qa.mjs"
+    "qa": "node scripts/qa.mjs",
+    "qa:keyboard": "node scripts/qa-keyboard.mjs",
+    "qa:desktop": "node scripts/electron-smoke.mjs",
+    "test:midi": "node --experimental-strip-types --test tests/midi/*.test.mjs",
+    "native:sync": "node scripts/package-native.mjs",
+    "native:verify": "node scripts/verify-native.mjs",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:pack": "npm run build && electron-builder --config desktop/electron-builder.yml --publish never"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -19,6 +29,8 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3",
     "playwright-core": "^1.62.0",
     "typescript": "^5.5.4",
     "vite": "^5.4.0"

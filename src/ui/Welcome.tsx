@@ -5,6 +5,7 @@ import { toast } from '../state/toasts'
 import { createDrumClipHere } from './StepSequencer'
 import { createMelodicClipHere } from './PianoRoll'
 import { Ic } from './icons'
+import { connectMidi } from '../midi/midi'
 
 const WELCOME_KEY = 'openstudio.welcome.v1'
 
@@ -49,7 +50,7 @@ export function Welcome() {
         <div className="welcome-head">
           <span className="logo-mark" />
           <div>
-            <h2>Welcome to OpenStudio</h2>
+            <h2>Welcome to soundLAB Studio</h2>
             <p className="hint">
               Your song lives on the <b>timeline</b> up top. The panel below is the <b>editor</b> — it always shows
               the tools for whatever track or clip you've selected. Pick a starting point:
@@ -57,6 +58,17 @@ export function Welcome() {
           </div>
         </div>
         <div className="welcome-cards">
+          <button className="welcome-card" onClick={() => {
+            engine.ensure()
+            void connectMidi()
+            setUI({ bottomTab: 'keys' })
+            done()
+            document.querySelector('.keyboard-connection')?.setAttribute('open', '')
+          }}>
+            <Ic n="keys" size={22} />
+            <span className="wc-title">Connect a keyboard</span>
+            <span className="wc-sub">USB MIDI, LUMI and expressive controllers</span>
+          </button>
           <button className="welcome-card" onClick={() => { createDrumClipHere(); done() }}>
             <Ic n="steps" size={22} />
             <span className="wc-title">Make a beat</span>
@@ -96,7 +108,7 @@ export function HelpModal() {
   return (
     <div className="modal-backdrop" onClick={close}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 94vw)' }}>
-        <h3>How OpenStudio works</h3>
+        <h3>How soundLAB Studio works</h3>
 
         <div className="row">
           <button className="active" onClick={() => setUI({ showHelp: false, tourStep: 0 })}>

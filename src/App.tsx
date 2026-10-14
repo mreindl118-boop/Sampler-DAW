@@ -13,6 +13,7 @@ import { Tour } from './ui/Tour'
 import { Toasts } from './ui/Toasts'
 import { engine } from './audio/engine'
 import { initMidi } from './midi/midi'
+import { KeyboardConnection } from './ui/KeyboardConnection'
 import { exportProjectFile } from './util/projectio'
 import {
   copyClip, duplicateClip, findClip, getState, pasteClip, redo, removeClip, setUI, splitClip, undo, useStore,
@@ -44,8 +45,8 @@ export default function App() {
   useEffect(() => {
     void initMidi()
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      const target = e.target as HTMLElement
+      if (target?.closest?.('input, select, textarea, button, a, summary, [contenteditable]')) return
       if (e.code === 'Space') {
         e.preventDefault()
         engine.togglePlay()
@@ -95,6 +96,7 @@ export default function App() {
   return (
     <div className="app">
       <TransportBar />
+      <KeyboardConnection />
       <div className="main">
         <Arranger />
         <div className="bottom">

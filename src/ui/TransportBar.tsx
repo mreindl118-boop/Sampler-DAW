@@ -69,8 +69,8 @@ export function TransportBar() {
     <div className="transport">
       <span className="logo">
         <span className="logo-mark" />
-        OpenStudio
-        <span className="logo-sub">DAW</span>
+        soundLAB
+        <span className="logo-sub">STUDIO</span>
       </span>
       <span className="t-sep" />
       <button onClick={() => { engine.ensure(); engine.setPosition(0) }} title="Return to zero"><Ic n="rtz" /></button>
